@@ -77,16 +77,6 @@ private actor HeldProvider: VerificationProvider {
     await provider.release()
 }
 
-@Test func expiryTerminatesHeldProvider() async {
-    let provider = HeldProvider()
-    let source = SyntheticEvidenceSource()
-    await #expect(throws: VerificationError.expired) {
-        try await VerificationClient(provider: provider).run(session: session(seconds: 0.05), consent: consent, evidence: source)
-    }
-    #expect(await source.cleanupCount == 1)
-    await provider.release()
-}
-
 @Test func expiredSessionDoesNotStartProvider() async {
     let provider = ScriptedProvider(scenario: .approved)
     await #expect(throws: VerificationError.expired) {

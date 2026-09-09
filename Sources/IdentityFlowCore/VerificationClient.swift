@@ -4,6 +4,7 @@ import Foundation
 public actor VerificationClient {
     private struct Run {
         let generation: UUID
+        let deadline: Duration
         let session: VerificationSession
         let evidence: any EvidenceSource
         let continuation: CheckedContinuation<VerificationOutcome, any Error>
@@ -13,9 +14,18 @@ public actor VerificationClient {
         var finishing = false
     }
     private let provider: any VerificationProvider
+    private let clock: any SessionClock
     private var active: Run?
 
-    public init(provider: any VerificationProvider) { self.provider = provider }
+    public init(provider: any VerificationProvider) {
+        self.provider = provider
+        self.clock = SystemSessionClock()
+    }
+
+    init(provider: any VerificationProvider, clock: any SessionClock) {
+        self.provider = provider
+        self.clock = clock
+    }
 
     /// Call after the user explicitly accepts the disclosure. Acknowledgement precedes capture/upload.
     /// The optional stream must be created with bufferingNewest(1) by the caller.
@@ -29,12 +39,13 @@ public actor VerificationClient {
         guard !session.id.isEmpty, !session.token.isEmpty, !consent.disclosureVersion.isEmpty else {
             throw VerificationError.invalidSession
         }
-        let lifetime = min(session.expiresAt.timeIntervalSinceNow, 15 * 60)
+        let lifetime = min(session.expiresAt.timeIntervalSince(clock.wallNow), 15 * 60)
         guard lifetime > 0 else { throw VerificationError.expired }
         let generation = UUID()
+        let deadline = clock.elapsed + .seconds(lifetime)
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                active = Run(generation: generation, session: session, evidence: evidence,
+                active = Run(generation: generation, deadline: deadline, session: session, evidence: evidence,
                              continuation: continuation, progress: progress)
                 if Task.isCancelled {
                     Task { await self.finish(generation, result: .success(.cancelled), remoteCancel: true) }
@@ -42,7 +53,7 @@ public actor VerificationClient {
                 }
                 active?.worker = Task { await self.execute(generation, session: session, consent: consent, evidence: evidence) }
                 active?.expiry = Task {
-                    do { try await Task.sleep(for: .seconds(lifetime)) } catch { return }
+                    do { try await self.clock.sleep(until: deadline) } catch { return }
                     await self.finish(generation, result: .failure(VerificationError.expired), remoteCancel: true)
                 }
             }
@@ -59,7 +70,9 @@ public actor VerificationClient {
     private func advance(_ generation: UUID, to progress: VerificationProgress) throws {
         guard let active, active.generation == generation, !active.finishing else { throw CancellationError() }
         try Task.checkCancellation()
-        guard active.session.expiresAt > Date() else { throw VerificationError.expired }
+        guard active.session.expiresAt > clock.wallNow, clock.elapsed < active.deadline else {
+            throw VerificationError.expired
+        }
         active.progress?.yield(progress)
     }
 

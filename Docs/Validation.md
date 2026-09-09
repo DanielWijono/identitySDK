@@ -17,3 +17,9 @@ Added a controllable internal clock and tests for wall-clock rollback, a delayed
 Cancellation is exercised at consent, front/back capture, front/back upload, submission and decision. Tests also verify terminal progress completion and that a reserved approval survives cancellation during blocked cleanup; the client rejects new work until cleanup ends and accepts a fresh run afterward. Clock test helpers use Mutex and require macOS 15/iOS 18; the production core retains macOS 13/iOS 16 minimums.
 
 Follow-up validation: `swift test --scratch-path /tmp/identityflow-build` passed all 11 tests, including the seven cases of the cancellation-boundary test. The independent simulation consumer rebuilt and ran successfully with the unchanged public initializer.
+
+## iOS sample hosts
+
+Both UIKitSample and SwiftUISample built for generic iOS Simulator (arm64 and x86_64) with Xcode 26.3 and the iOS 26.2 SDK, targeting iOS 16. The UIKit UI suite passed 2 tests with zero failures on iPhone 16 Pro Simulator, iOS 18.3.1 (22D8075): consent gating and all four outcomes; cancellation and restart availability. SwiftUISample was installed and launched on the same simulator. A visual check identified a compressed consent switch; required horizontal hugging/compression priorities fixed it, and the rebuilt SwiftUI screen was checked again.
+
+No minimum-iOS-16 runtime, physical-device, VoiceOver or maximum-Dynamic-Type validation is claimed. The UI tests precede the final layout-only switch priority adjustment; the adjusted shared source was rebuilt in SwiftUISample. The hosts simulate capture/transfer and cancel on background; they do not implement production capture/review or foreground reconciliation.

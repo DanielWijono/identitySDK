@@ -1,0 +1,66 @@
+name: IdentityFlowSamples
+options:
+  deploymentTarget:
+    iOS: '16.0'
+packages:
+  IdentityFlow:
+    path: ../..
+settings:
+  base:
+    SWIFT_VERSION: '6.0'
+    SWIFT_STRICT_CONCURRENCY: complete
+    TARGETED_DEVICE_FAMILY: '1'
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+    CODE_SIGN_STYLE: Automatic
+    CURRENT_PROJECT_VERSION: '1'
+    MARKETING_VERSION: '0.1.0'
+targets:
+  UIKitSample:
+    type: application
+    platform: iOS
+    sources: [Shared, UIKitHost]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.identityflow.samples.uikit
+        INFOPLIST_KEY_CFBundleDisplayName: IdentityFlow UIKit
+    dependencies:
+      - package: IdentityFlow
+        product: IdentityFlowCore
+      - package: IdentityFlow
+        product: IdentityFlowDemoSupport
+  SwiftUISample:
+    type: application
+    platform: iOS
+    sources: [Shared, SwiftUIHost]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.identityflow.samples.swiftui
+        INFOPLIST_KEY_CFBundleDisplayName: IdentityFlow SwiftUI
+    dependencies:
+      - package: IdentityFlow
+        product: IdentityFlowCore
+      - package: IdentityFlow
+        product: IdentityFlowDemoSupport
+  SampleUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.identityflow.samples.uitests
+        TEST_TARGET_NAME: UIKitSample
+    dependencies:
+      - target: UIKitSample
+schemes:
+  UIKitSample:
+    build:
+      targets:
+        UIKitSample: all
+    test:
+      targets: [SampleUITests]
+  SwiftUISample:
+    build:
+      targets:
+        SwiftUISample: all

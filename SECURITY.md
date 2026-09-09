@@ -6,4 +6,4 @@ Host and SDK share an application process. Redacted descriptions cannot stop a m
 
 The intended threat model covers accidental plaintext persistence, backup/log leakage, expired reuse, duplicate requests and orphaned evidence. Full process/device compromise is outside scope. Backend retention and deletion are separate from local cancellation.
 
-Encrypted storage, lock-state recovery, orphan cleanup, HTTP token enforcement and foreground handling are still pending. Test success for the core does not establish those properties.
+The optional IdentityFlowSecurity module implements AES-GCM storage, Keychain keys, owned startup sweeping and explicit foreground/expiry access guards. It is not yet connected to the sample flow. Real iOS locked-device validation, lifecycle integration and HTTP token enforcement remain pending. See Docs/Evidence-Vault.md for the cleanup error contract. Test success for the core does not establish those properties.

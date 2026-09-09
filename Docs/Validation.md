@@ -23,3 +23,9 @@ Follow-up validation: `swift test --scratch-path /tmp/identityflow-build` passed
 Both UIKitSample and SwiftUISample built for generic iOS Simulator (arm64 and x86_64) with Xcode 26.3 and the iOS 26.2 SDK, targeting iOS 16. The UIKit UI suite passed 2 tests with zero failures on iPhone 16 Pro Simulator, iOS 18.3.1 (22D8075): consent gating and all four outcomes; cancellation and restart availability. SwiftUISample was installed and launched on the same simulator. A visual check identified a compressed consent switch; required horizontal hugging/compression priorities fixed it, and the rebuilt SwiftUI screen was checked again.
 
 No minimum-iOS-16 runtime, physical-device, VoiceOver or maximum-Dynamic-Type validation is claimed. The UI tests precede the final layout-only switch priority adjustment; the adjusted shared source was rebuilt in SwiftUISample. The hosts simulate capture/transfer and cancel on background; they do not implement production capture/review or foreground reconciliation.
+
+## Vault foundation
+
+Local Swift 6 suite: all 17 tests passed (11 core plus 6 vault tests). Vault coverage includes ciphertext round-trip, retake/revocation, foreground gating, terminal cleanup, tampering and swapped side authentication failure, simulated Keychain lock/missing-key failures, retry after failed key deletion, orphan sweep with host-file preservation, monotonic local expiry despite wall rollback, and a real macOS Keychain round-trip with service isolation. Synthetic bytes/keys only.
+
+The security module also passed a Swift 6 strict-concurrency type-check for arm64 iOS 16 Simulator against the installed iOS 26.2 SDK. This does not prove iOS Keychain entitlements or physical locked-file behavior. The final retake bookkeeping adjustment passed the local suite; filesystem deletion fault injection remains open. Existing sample sources were unchanged and still use synthetic memory storage; no new camera or production vault integration is claimed.

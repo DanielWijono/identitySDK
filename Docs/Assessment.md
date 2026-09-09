@@ -20,7 +20,7 @@ The plan correctly separates capture guidance from identity decisions, bounds re
 ## Next ordered gates
 
 1. Complete M0/M1 with explicit review/recovery transition tests and lifecycle integration. UIKit/SwiftUI simulation consumers, injected time, and cancellation coverage at each current capture/provider boundary are implemented.
-2. Implement M2 CryptoKit/Keychain vault, access-time expiry, protected files, owned orphan sweep and integration tests. Only then connect real capture.
+2. Complete M2 integration and device gates. The CryptoKit/Keychain vault foundation, access-time expiry and owned orphan sweep now have local tests; flow cleanup error propagation, iOS lock-state validation and filesystem fault coverage remain before real capture.
 3. Implement M3 camera and normalization; validate permissions, interruptions, accessibility and timing on physical hardware.
 4. Implement M4 demo HTTP service and adapter; prove accepted-request/lost-response idempotency with fault injection.
 5. Complete M5/M6 performance evidence, independent integration, privacy review, license selection and release artifacts.

@@ -23,12 +23,12 @@ Open `Examples/iOS/IdentityFlowSamples.xcodeproj`, select **UIKitSample** or **S
 
 Create `VerificationClient(provider:)`, then await `run(session:consent:evidence:)`. Supply consent only after explicit user acceptance. `EvidenceSource` returns confirmed evidence through revocable readers and cleans up owned resources. The provider acknowledges consent, uploads both sides, submits, and returns approved/rejected/pending. `cancel()` and cancellation of the awaiting task converge on terminal cleanup.
 
-Each run requires a fresh evidence source. Cleanup is idempotent and must revoke readers and prevent in-flight capture from creating new evidence. The client remains busy until cleanup completes. Provider implementations must bound their own I/O; uncooperative provider tasks may outlive local cancellation, but cannot advance the cancelled generation. Remote cancellation is best effort.
+Each run requires a fresh evidence source. Cleanup is idempotent and must revoke readers and prevent in-flight capture from creating new evidence. If deletion fails, the client throws `cleanupRequired` and rejects new runs. Retain it and call `retryCleanup()` after storage becomes available; successful retry delivers the original result without repeating uploads. Provider implementations must bound their own I/O; uncooperative provider tasks may outlive local cancellation, but cannot advance the cancelled generation. Remote cancellation is best effort.
 
 `VerificationSession` descriptions redact credentials. Its public token remains accessible to the host/provider and must never be logged. Error payloads from arbitrary providers are replaced with a typed error.
 
 ## Status
 
-M0/M1 are in progress; this is not a v0.1 release. UIKit and SwiftUI simulation hosts are available. An optional encrypted vault foundation is available; see [vault contract and remaining gates](Docs/Evidence-Vault.md). Camera, vault-to-flow integration, HTTP adapter, automatic retry, foreground reconciliation, and physical-device evidence remain unimplemented. See [assessment](Docs/Assessment.md), [state contract](Docs/State-Machine.md), and the [original plan](IdentityFlow-SDK-Plan.md).
+M0/M1 are in progress; this is not a v0.1 release. UIKit and SwiftUI simulation hosts are available. Encrypted storage is integrated into the iOS simulation hosts; see [vault contract and remaining gates](Docs/Evidence-Vault.md). Camera, HTTP adapter, automatic retry, foreground reconciliation, and physical-device evidence remain unimplemented. See [assessment](Docs/Assessment.md), [state contract](Docs/State-Machine.md), and the [original plan](IdentityFlow-SDK-Plan.md).
 
 The optional progress continuation should use `AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))`. It finishes for accepted runs; callers own continuations for runs rejected during initial validation.

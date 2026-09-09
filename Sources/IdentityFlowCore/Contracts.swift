@@ -34,13 +34,15 @@ public enum VerificationOutcome: Sendable, Equatable {
     case cancelled
 }
 
-public enum RecoveryAction: Sendable { case retry, restartSession, contactHostSupport }
+public enum RecoveryAction: Sendable { case retry, retryCleanup, restartSession, contactHostSupport }
 public enum VerificationError: Error, Sendable, Equatable {
     case sessionAlreadyActive, expired, invalidSession, providerFailure, evidenceFailure
+    case cleanupRequired, cleanupInProgress, noCleanupPending
     public var recoveryAction: RecoveryAction {
         switch self {
         case .expired, .invalidSession: .restartSession
         case .providerFailure: .retry
+        case .cleanupRequired, .cleanupInProgress: .retryCleanup
         default: .contactHostSupport
         }
     }
@@ -69,7 +71,8 @@ public struct Evidence: Sendable {
 /// An implementation must cancel capture and revoke readers on cleanup, including in-flight work.
 public protocol EvidenceSource: Sendable {
     func confirmedEvidence(for side: DocumentSide) async throws -> Evidence
-    func cleanup() async
+    /// Revoke readers before suspending. Throw if deletion fails; subsequent calls must retry it.
+    func cleanup() async throws
 }
 
 public protocol VerificationProvider: Sendable {

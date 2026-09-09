@@ -30,20 +30,25 @@ public actor EvidenceVault {
     private let keys: any KeyStore
     private let wallNow: @Sendable () -> Date
     private let monotonicNow: @Sendable () -> ContinuousClock.Instant
+    private let removeFile: @Sendable (URL) throws -> Void
     private var sessions: [UUID: Session] = [:]
     private var initialized = false
-    private var foreground = false
+    private nonisolated let gate = ForegroundGate()
 
     init(root: URL, keys: any KeyStore,
          wallNow: @escaping @Sendable () -> Date = { Date() },
-         monotonicNow: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now }) {
+         monotonicNow: @escaping @Sendable () -> ContinuousClock.Instant = { ContinuousClock.now },
+         removeFile: @escaping @Sendable (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) }) {
         self.root = root; self.keys = keys
         self.wallNow = wallNow; self.monotonicNow = monotonicNow
+        self.removeFile = removeFile
     }
 
     /// First activation sweeps only this vault's dedicated namespace. Never sweeps live sessions.
-    public func enterForeground() throws {
-        foreground = false
+    public nonisolated func foregroundPermit() -> VaultForegroundPermit { gate.permit() }
+
+    public func enterForeground(_ permit: VaultForegroundPermit) throws {
+        guard gate.accepts(permit) else { throw VaultError.inactive }
         if !initialized {
             try keys.deleteAll() // Key first, including keys orphaned before file creation.
             do {
@@ -59,14 +64,14 @@ public actor EvidenceVault {
             } catch { throw VaultError.fileFailure }
             initialized = true
         }
-        for id in Array(sessions.keys) where isExpired(sessions[id]!) { try cleanup(VaultSession(id: id)) }
-        foreground = true
+        for id in Array(sessions.keys) where revoked.contains(id) || isExpired(sessions[id]!) { try cleanup(VaultSession(id: id)) }
+        try gate.activate(permit)
     }
 
-    public func leaveForeground() { foreground = false }
+    public nonisolated func leaveForeground() { gate.suspend() }
 
     public func begin(sessionID: String, expiresAt: Date) throws -> VaultSession {
-        guard initialized, foreground else { throw VaultError.inactive }
+        guard initialized, gate.isActive else { throw VaultError.inactive }
         let lifetime = min(expiresAt.timeIntervalSince(wallNow()), 900)
         guard lifetime > 0 else { throw VaultError.expired }
         guard !sessionID.isEmpty else { throw VaultError.invalidEvidence }
@@ -85,7 +90,7 @@ public actor EvidenceVault {
         guard !jpeg.isEmpty, jpeg.count <= 3_000_000 else { throw VaultError.invalidEvidence }
         if let old = session.evidence.removeValue(forKey: side) {
             sessions[handle.id] = session
-            do { try FileManager.default.removeItem(at: file(old)) } catch { throw VaultError.fileFailure }
+            try deleteCiphertext(old)
             session.files.remove(old)
             sessions[handle.id] = session
         }
@@ -116,11 +121,7 @@ public actor EvidenceVault {
         guard let session = sessions[handle.id] else { return }
         revoked.insert(handle.id)
         try keys.delete(account: handle.id.uuidString)
-        do {
-            for id in session.files where FileManager.default.fileExists(atPath: file(id).path) {
-                try FileManager.default.removeItem(at: file(id))
-            }
-        } catch { throw VaultError.fileFailure }
+        for id in session.files { try deleteCiphertext(id) }
         sessions.removeValue(forKey: handle.id)
         revoked.remove(handle.id)
     }
@@ -134,7 +135,7 @@ public actor EvidenceVault {
             try cleanup(handle)
             throw VaultError.expired
         }
-        guard foreground else { throw VaultError.inactive }
+        guard gate.isActive else { throw VaultError.inactive }
         return session
     }
     private func read(_ handle: VaultSession, id: UUID, side: DocumentSide) throws -> Data {
@@ -145,11 +146,24 @@ public actor EvidenceVault {
         do { data = try Data(contentsOf: file(id)) } catch { throw VaultError.fileFailure }
         guard data.count <= 3_000_028 else { throw VaultError.invalidEvidence }
         do {
-            return try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: key,
-                                    authenticating: aad(session: session, id: id, side: side))
-        } catch { throw VaultError.integrityFailure }
+            let plaintext = try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: key,
+                                             authenticating: aad(session: session, id: id, side: side))
+            guard gate.isActive else { throw VaultError.inactive }
+            return plaintext
+        } catch let error as VaultError { throw error }
+        catch { throw VaultError.integrityFailure }
     }
     private func file(_ id: UUID) -> URL { root.appendingPathComponent(id.uuidString + ".sealed") }
+    private func deleteCiphertext(_ id: UUID) throws {
+        do { try removeFile(file(id)) }
+        catch {
+            let error = error as NSError
+            // A failed existence check may mean inaccessible protected data, not absence.
+            guard error.domain == NSCocoaErrorDomain, error.code == NSFileNoSuchFileError else {
+                throw VaultError.fileFailure
+            }
+        }
+    }
     private func aad(session: Session, id: UUID, side: DocumentSide) -> Data {
         // Length-safe structured encoding prevents delimiter ambiguity in host-issued IDs.
         Data("v1|jpeg|\(session.serverID.utf8.count)|\(session.serverID)|\(id.uuidString)|\(side.rawValue)".utf8)

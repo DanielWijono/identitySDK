@@ -1,29 +1,48 @@
-# Secure evidence vault foundation
+# Encrypted evidence and flow cleanup
 
-`IdentityFlowSecurity` is an optional Swift Package product depending only on core and Apple frameworks. The sample apps still use the in-memory synthetic source. This module is not yet connected to capture or an `EvidenceSource` lifecycle adapter.
+`IdentityFlowSecurity` is an optional Swift Package product depending on core and Apple frameworks. Both iOS samples now use `VaultEvidenceSource` with generated, synthetic JPEGs. The command-line demo remains an explicit in-memory simulation. No real camera or network provider is connected.
 
-## Contract
+## Host integration
 
-Use `EvidenceVault.shared` in one host process. Await `enterForeground()` before beginning work and await `leaveForeground()` when the host becomes inactive, before allowing further SDK operations. The first foreground entry removes old keys and files from the SDK's dedicated namespace because cross-launch resume is unsupported. Re-entering foreground does not sweep current live sessions; it revalidates expiry.
+The host owns lifecycle notifications. Use `EvidenceVault.shared` once per process. Capture a `foregroundPermit()` synchronously when the app becomes active and protected data is available, then await `enterForeground(permit)`. On inactivity or protected-data unavailability, call the synchronous `leaveForeground()` immediately, conceal previews, and cancel the running flow. Do not put that call inside a new Task: its purpose is to close access before returning from the notification.
 
-`begin(sessionID:expiresAt:)` generates a fresh 256-bit AES key and returns an opaque `VaultSession`. `store(_:side:in:)` accepts already-normalized JPEG data up to 3,000,000 bytes and returns a core `Evidence` with a revocable reader. This storage layer checks byte limits but does not validate JPEG encoding, image dimensions, orientation or metadata. The future capture normalizer owns those checks.
+A permit issued before inactivity cannot reopen the gate afterward. Use a fresh permit on the next activation. Foreground entry sweeps orphaned data only on first initialization, then revalidates expired/revoked sessions on subsequent entries. The samples cancel on every inactivity event, including transient interruptions; they do not resume a prior transfer. Production status reconciliation remains separate work.
 
-Replacing one side revokes the old reader and deletes the old ciphertext before saving the new value. Encryption uses a new CryptoKit-generated nonce for each write. Associated data authenticates format version, media type, length-delimited server session ID, evidence UUID and side. Files have opaque UUID names, never server IDs or tokens.
+Create a fresh `VaultEvidenceSource(sessionID:expiresAt:capture:vault:)` for the session passed to the client. `ConfirmedImageCapture` must return only user-confirmed, normalized JPEG bytes and implement cancellation. The adapter creates its vault session lazily after the client accepts the run. A rejected start therefore allocates no key or evidence. It does not keep the network token.
 
-Keys use a dedicated Keychain service and WhenUnlockedThisDeviceOnly. On iOS, ciphertext uses complete file protection; the dedicated directory is excluded from backup. No plaintext or token is written to files. On macOS, tests prove encryption/Keychain behavior, not iOS lock-state guarantees.
+The adapter seals confirmed bytes, returns scoped readers to the provider, and rejects late capture completions after cleanup. Cleanup revokes readers synchronously before suspension, schedules capture cancellation, awaits any in-flight vault-session creation, and deletes the session. An uncooperative capture cannot delay key deletion; its eventual result cannot create new evidence.
 
-Readers require foreground access, a live handle, the current evidence ID and a valid session key. Both wall-clock backend expiry and a fixed monotonic deadline are checked; the local ceiling is 15 minutes. Access after expiry attempts cleanup before returning an error. This vault does not independently schedule a timer; the future adapter must connect the core timer and all terminal paths to cleanup.
+## Terminal cleanup and retry
 
-`cleanup(_:)` revokes readers immediately, then deletes the key before files. It is idempotent after success. If deletion fails, it throws a typed error and retains bookkeeping for a retry; it does not report successful deletion. Startup sweeping handles crash-orphaned data. The host integration must not swallow cleanup failures in the existing nonthrowing `EvidenceSource.cleanup()` interface: error propagation/retry ownership must be resolved before integration.
+`EvidenceSource.cleanup()` is now `async throws`. Existing nonthrowing implementations can still conform; calls through the protocol must use `try await`. Implementations must revoke access before awaiting I/O and retain enough state to retry deletion.
 
-## Remaining M2 gates
+On any terminal result—including approval, rejection, pending, user/task cancellation, technical failure and core-timer expiry—the client attempts cleanup in a task independent of the cancelled worker. On success it delivers the reserved result. On cleanup failure:
 
-- Integrate lifecycle events, terminal cleanup and expiry scheduling through a capture/evidence adapter.
-- Real iOS Keychain and protected-file tests while locked/backgrounded; simulator/macOS tests do not establish physical-device protection.
-- Test filesystem deletion failures and crash points under fault injection, including retake and writes.
-- Review multi-process/app-extension ownership; the shared vault is designed for a single host process.
-- Image normalization and decode/size validation before actual document capture.
+- `run` throws the sanitized `VerificationError.cleanupRequired` and finishes its progress stream.
+- `requiresCleanup` is true; new runs are rejected with `cleanupRequired`.
+- The client retains the evidence source and original result. The host must retain this client until recovery completes.
+- `retryCleanup()` retries only deletion. It never repeats provider mutations. After successful deletion, it returns the original outcome or throws the original technical error. Check `requiresCleanup` to distinguish a recovered original failure from another cleanup failure.
+- Concurrent retry attempts receive `cleanupInProgress`; a call without pending cleanup receives `noCleanupPending`.
 
-No secure physical overwrite or universal Swift memory wiping is claimed. Plaintext necessarily exists briefly when sealing/opening and in the caller/provider that holds returned Data.
+The sample presents **Retry cleanup** without claiming evidence was cleared. It retains the affected client and keeps Start disabled until successful recovery. If the process is killed, the next first vault activation sweeps the namespace; cross-launch result/credential recovery is not supported.
 
-Apple API references: [AES-GCM](https://developer.apple.com/documentation/cryptokit/aes/gcm), [WhenUnlockedThisDeviceOnly](https://developer.apple.com/documentation/security/ksecattraccessiblewhenunlockedthisdeviceonly), [complete file protection](https://developer.apple.com/documentation/foundation/fileprotectiontype/complete).
+## Storage contract
+
+`begin(sessionID:expiresAt:)` generates a fresh AES-256 key and returns an opaque `VaultSession`. `store(_:side:in:)` accepts normalized JPEG data up to 3,000,000 bytes. It checks byte limits, not JPEG encoding, dimensions, orientation or metadata: the future capture normalizer owns those checks.
+
+Replacement revokes the old reader and deletes the superseded ciphertext before saving new data. CryptoKit chooses a fresh nonce for each encryption. Associated data authenticates format version, media type, length-delimited server session ID, evidence UUID and side. Files have UUID names and contain only sealed bytes.
+
+Keys use the SDK's dedicated Keychain service and WhenUnlockedThisDeviceOnly. iOS files use complete file protection and the directory is excluded from backup. Keys are deleted before files. Only a confirmed file-not-found error is treated as already deleted; permission/protection/deletion errors stay visible and retain retry bookkeeping.
+
+Every read requires active foreground access, a live handle, the current evidence ID and a valid key. Expiry checks backend wall time and a fixed monotonic deadline capped at 15 minutes. The integrated core timer invokes source cleanup even while a provider is held. The synchronous foreground gate is checked again after decryption. Data already delivered to a provider remains that provider's responsibility.
+
+## Remaining device gates
+
+- Run the [physical-device checklist](Device-Validation.md). Paired iPhones were unavailable during implementation; no physical lock/unlock result is claimed.
+- Test process termination at write/retake/crash boundaries. Fault-injected terminal file deletion and key deletion failures are covered; this is not exhaustive crash testing.
+- Review app-extension/multi-process ownership before using the shared namespace outside a single host process.
+- Add image normalization, capture/review and permission handling before using real documents.
+
+No secure physical overwrite or universal Swift memory wiping is claimed. Plaintext exists briefly in capture, encryption/decryption and providers that receive Data. Uncooperative external work may retain its own copies after cancellation.
+
+Apple references: [AES-GCM](https://developer.apple.com/documentation/cryptokit/aes/gcm), [WhenUnlockedThisDeviceOnly](https://developer.apple.com/documentation/security/ksecattraccessiblewhenunlockedthisdeviceonly), [protected-data notification](https://developer.apple.com/documentation/uikit/uiapplication/protecteddatawillbecomeunavailablenotification), [inactivity notification](https://developer.apple.com/documentation/uikit/uiapplication/willresignactivenotification).

@@ -12,7 +12,7 @@ let package = Package(
     targets: [
         .target(name: "IdentityFlowCore"),
         .target(name: "IdentityFlowSecurity", dependencies: ["IdentityFlowCore"]),
-        .testTarget(name: "IdentityFlowSecurityTests", dependencies: ["IdentityFlowSecurity"]),
+        .testTarget(name: "IdentityFlowSecurityTests", dependencies: ["IdentityFlowSecurity", "IdentityFlowCore"]),
         .target(name: "IdentityFlowDemoSupport", dependencies: ["IdentityFlowCore"]),
         .testTarget(name: "IdentityFlowCoreTests", dependencies: ["IdentityFlowCore", "IdentityFlowDemoSupport"])
     ],

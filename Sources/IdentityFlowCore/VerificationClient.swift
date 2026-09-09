@@ -16,6 +16,28 @@ public actor VerificationClient {
     private let provider: any VerificationProvider
     private let clock: any SessionClock
     private var active: Run?
+    private struct PendingCleanup {
+        let evidence: any EvidenceSource
+        let result: Result<VerificationOutcome, any Error>
+    }
+    private var pendingCleanup: PendingCleanup?
+    private var retryingCleanup = false
+
+    public var requiresCleanup: Bool { pendingCleanup != nil }
+
+    /// Retry only local deletion, never uploads or submission. After successful cleanup, delivers
+    /// the originally reserved outcome (or throws the original technical failure).
+    public func retryCleanup() async throws -> VerificationOutcome {
+        guard !retryingCleanup else { throw VerificationError.cleanupInProgress }
+        guard let pendingCleanup else { throw VerificationError.noCleanupPending }
+        retryingCleanup = true
+        defer { retryingCleanup = false }
+        let evidence = pendingCleanup.evidence
+        do { try await Task { try await evidence.cleanup() }.value }
+        catch { throw VerificationError.cleanupRequired }
+        self.pendingCleanup = nil
+        return try pendingCleanup.result.get()
+    }
 
     public init(provider: any VerificationProvider) {
         self.provider = provider
@@ -36,6 +58,7 @@ public actor VerificationClient {
         progress: AsyncStream<VerificationProgress>.Continuation? = nil
     ) async throws -> VerificationOutcome {
         guard active == nil else { throw VerificationError.sessionAlreadyActive }
+        guard pendingCleanup == nil else { throw VerificationError.cleanupRequired }
         guard !session.id.isEmpty, !session.token.isEmpty, !consent.disclosureVersion.isEmpty else {
             throw VerificationError.invalidSession
         }
@@ -114,11 +137,18 @@ public actor VerificationClient {
         run.expiry?.cancel()
         // Independent task: cleanup must not inherit the worker's cancelled status.
         let evidence = run.evidence
-        await Task { await evidence.cleanup() }.value
+        let delivered: Result<VerificationOutcome, any Error>
+        do {
+            try await Task { try await evidence.cleanup() }.value
+            delivered = result
+        } catch {
+            pendingCleanup = PendingCleanup(evidence: evidence, result: result)
+            delivered = .failure(VerificationError.cleanupRequired)
+        }
         run.progress?.yield(.finished)
         run.progress?.finish()
         active = nil
-        run.continuation.resume(with: result)
+        run.continuation.resume(with: delivered)
         if remoteCancel {
             let provider = self.provider
             let session = run.session

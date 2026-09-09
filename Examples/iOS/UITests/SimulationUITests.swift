@@ -2,6 +2,23 @@ import XCTest
 
 @MainActor
 final class SimulationUITests: XCTestCase {
+    func testBackgroundCancelsAndForegroundAllowsAnotherRun() {
+        let app = XCUIApplication()
+        app.launch()
+        app.switches["Agree to synthetic demo"].tap()
+        app.buttons["Start simulation"].tap()
+        XCUIDevice.shared.press(.home)
+        app.activate()
+        let result = app.staticTexts["simulationStatus"]
+        expectation(for: NSPredicate(format: "label == %@", "Simulation cancelled. Synthetic evidence was cleared."), evaluatedWith: result)
+        waitForExpectations(timeout: 10)
+        expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: app.buttons["Start simulation"])
+        waitForExpectations(timeout: 10)
+        app.buttons["Start simulation"].tap()
+        expectation(for: NSPredicate(format: "label == %@", "Simulated approval. No identity was verified."), evaluatedWith: result)
+        waitForExpectations(timeout: 10)
+    }
+
     func testConsentAndOutcomes() {
         let app = XCUIApplication()
         app.launch()

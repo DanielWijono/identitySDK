@@ -4,7 +4,7 @@ import Testing
 @testable import IdentityFlowSecurity
 
 @available(macOS 15, iOS 18, *)
-private final class MemoryKeys: KeyStore, Sendable {
+final class MemoryKeys: KeyStore, Sendable {
     struct State { var keys: [String: Data] = [:]; var locked = false }
     let state = Mutex(State())
     func save(_ data: Data, account: String) throws { state.withLock { $0.keys[account] = data } }
@@ -34,7 +34,7 @@ private func temporaryRoot() -> URL {
     defer { try? FileManager.default.removeItem(at: root) }
     let keys = MemoryKeys()
     let vault = EvidenceVault(root: root, keys: keys)
-    try await vault.enterForeground()
+    try await vault.enterForeground(vault.foregroundPermit())
     let session = try await vault.begin(sessionID: "synthetic", expiresAt: Date().addingTimeInterval(60))
     let bytes = Data("SYNTHETIC EVIDENCE ONLY".utf8)
     let first = try await vault.store(bytes, side: .front, in: session)
@@ -47,9 +47,9 @@ private func temporaryRoot() -> URL {
     #expect(!FileManager.default.fileExists(atPath: path.path))
     await #expect(throws: VaultError.revoked) { try await first.reader.read() }
     #expect(try await second.reader.read() == bytes)
-    await vault.leaveForeground()
+    vault.leaveForeground()
     await #expect(throws: VaultError.inactive) { try await second.reader.read() }
-    try await vault.enterForeground()
+    try await vault.enterForeground(vault.foregroundPermit())
     #expect(try await second.reader.read() == bytes)
     try await vault.cleanup(session)
     try await vault.cleanup(session)
@@ -63,7 +63,7 @@ private func temporaryRoot() -> URL {
     let root = temporaryRoot()
     defer { try? FileManager.default.removeItem(at: root) }
     let vault = EvidenceVault(root: root, keys: MemoryKeys())
-    try await vault.enterForeground()
+    try await vault.enterForeground(vault.foregroundPermit())
     let session = try await vault.begin(sessionID: "synthetic", expiresAt: Date().addingTimeInterval(60))
     let front = try await vault.store(Data("front".utf8), side: .front, in: session)
     let back = try await vault.store(Data("back".utf8), side: .back, in: session)
@@ -85,7 +85,7 @@ private func temporaryRoot() -> URL {
     defer { try? FileManager.default.removeItem(at: root) }
     let keys = MemoryKeys()
     let vault = EvidenceVault(root: root, keys: keys)
-    try await vault.enterForeground()
+    try await vault.enterForeground(vault.foregroundPermit())
     let session = try await vault.begin(sessionID: "synthetic", expiresAt: Date().addingTimeInterval(60))
     let evidence = try await vault.store(Data([1, 2, 3]), side: .front, in: session)
     keys.state.withLock { $0.locked = true }
@@ -109,13 +109,13 @@ private func temporaryRoot() -> URL {
     defer { try? FileManager.default.removeItem(at: parent) }
     let keys = MemoryKeys()
     let old = EvidenceVault(root: root, keys: keys)
-    try await old.enterForeground()
+    try await old.enterForeground(old.foregroundPermit())
     let session = try await old.begin(sessionID: "synthetic", expiresAt: Date().addingTimeInterval(60))
     _ = try await old.store(Data([1]), side: .front, in: session)
     let host = parent.appendingPathComponent("host.txt")
     try Data("host".utf8).write(to: host)
     let relaunched = EvidenceVault(root: root, keys: keys)
-    try await relaunched.enterForeground()
+    try await relaunched.enterForeground(relaunched.foregroundPermit())
     #expect(keys.state.withLock { $0.keys.isEmpty })
     #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
     #expect(try String(contentsOf: host, encoding: .utf8) == "host")
@@ -130,7 +130,7 @@ private func temporaryRoot() -> URL {
     let keys = MemoryKeys()
     let vault = EvidenceVault(root: root, keys: keys,
                               wallNow: { wall.withLock { $0 } }, monotonicNow: { instant.withLock { $0 } })
-    try await vault.enterForeground()
+    try await vault.enterForeground(vault.foregroundPermit())
     let session = try await vault.begin(sessionID: "synthetic", expiresAt: wall.withLock { $0.addingTimeInterval(3_600) })
     let evidence = try await vault.store(Data([1]), side: .front, in: session)
     wall.withLock { $0.addTimeInterval(-7_200) }

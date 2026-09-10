@@ -1,6 +1,6 @@
 # Encrypted evidence and flow cleanup
 
-`IdentityFlowSecurity` is an optional Swift Package product depending on core and Apple frameworks. Both iOS samples now use `VaultEvidenceSource` with generated, synthetic JPEGs. The command-line demo remains an explicit in-memory simulation. No real camera or network provider is connected.
+`IdentityFlowSecurity` is an optional Swift Package product depending on core and Apple frameworks. Both iOS samples use ImageNormalizer followed by `VaultEvidenceSource` with generated, synthetic JPEGs. The command-line demo remains an explicit in-memory simulation. No real camera or network provider is connected.
 
 ## Host integration
 
@@ -28,7 +28,7 @@ The sample presents **Retry cleanup** without claiming evidence was cleared. It 
 
 ## Storage contract
 
-`begin(sessionID:expiresAt:)` generates a fresh AES-256 key and returns an opaque `VaultSession`. `store(_:side:in:)` accepts normalized JPEG data up to 3,000,000 bytes. It checks byte limits, not JPEG encoding, dimensions, orientation or metadata: the future capture normalizer owns those checks.
+`begin(sessionID:expiresAt:)` generates a fresh AES-256 key and returns an opaque `VaultSession`. `store(_:side:in:)` accepts normalized JPEG data up to 3,000,000 bytes. It checks byte limits, not JPEG encoding, dimensions, orientation or metadata: ImageNormalizer handles decoding, dimensions, orientation and metadata before this layer.
 
 Replacement revokes the old reader and deletes the superseded ciphertext before saving new data. CryptoKit chooses a fresh nonce for each encryption. Associated data authenticates format version, media type, length-delimited server session ID, evidence UUID and side. Files have UUID names and contain only sealed bytes.
 
@@ -41,7 +41,7 @@ Every read requires active foreground access, a live handle, the current evidenc
 - Run the [physical-device checklist](Device-Validation.md). Paired iPhones were unavailable during implementation; no physical lock/unlock result is claimed.
 - Test process termination at write/retake/crash boundaries. Fault-injected terminal file deletion and key deletion failures are covered; this is not exhaustive crash testing.
 - Review app-extension/multi-process ownership before using the shared namespace outside a single host process.
-- Add image normalization, capture/review and permission handling before using real documents.
+- ImageNormalizer is now available and exercised by the synthetic samples; capture/review and permission handling remain before using real documents.
 
 No secure physical overwrite or universal Swift memory wiping is claimed. Plaintext exists briefly in capture, encryption/decryption and providers that receive Data. Uncooperative external work may retain its own copies after cancellation.
 

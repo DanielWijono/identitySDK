@@ -21,7 +21,7 @@ The plan correctly separates capture guidance from identity decisions, bounds re
 
 1. Complete M0/M1 with explicit review/recovery transition tests and lifecycle integration. UIKit/SwiftUI simulation consumers, injected time, and cancellation coverage at each current capture/provider boundary are implemented.
 2. Complete M2 integration and device gates. The vault is integrated through VaultEvidenceSource; throwing cleanup, retry ownership, immediate inactivity gating, stale activation rejection and terminal key/file deletion failures are tested. Physical-iPhone lock-state validation and broader write/retake crash coverage remain before real capture.
-3. Implement M3 camera and normalization; validate permissions, interruptions, accessibility and timing on physical hardware.
+3. Continue M3: ImageNormalizer now handles bounded JPEG encoding and orientation/metadata removal; camera/review remain. validate permissions, interruptions, accessibility and timing on physical hardware.
 4. Implement M4 demo HTTP service and adapter; prove accepted-request/lost-response idempotency with fault injection.
 5. Complete M5/M6 performance evidence, independent integration, privacy review, license selection and release artifacts.
 

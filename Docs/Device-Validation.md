@@ -1,6 +1,6 @@
 # Physical-iPhone validation gate
 
-Status: not performed. On this machine, `xcrun devicectl list devices` reported paired iPhones unavailable. Simulator success is not evidence of physical locked-device data protection.
+Status: not performed. Availability was checked again on 10 September 2026; paired iPhones remain unavailable. On this machine, `xcrun devicectl list devices` reported paired iPhones unavailable. Simulator success is not evidence of physical locked-device data protection.
 
 Use synthetic data only. Open the iOS sample project, choose a connected iPhone and your signing team, and run UIKitSample. Record device model, OS version, Xcode/build configuration, time, expected result and observed result for each check.
 

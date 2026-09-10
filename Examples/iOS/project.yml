@@ -32,6 +32,8 @@ targets:
         product: IdentityFlowDemoSupport
       - package: IdentityFlow
         product: IdentityFlowSecurity
+      - package: IdentityFlow
+        product: IdentityFlowCapture
   SwiftUISample:
     type: application
     platform: iOS
@@ -47,6 +49,8 @@ targets:
         product: IdentityFlowDemoSupport
       - package: IdentityFlow
         product: IdentityFlowSecurity
+      - package: IdentityFlow
+        product: IdentityFlowCapture
   SampleUITests:
     type: bundle.ui-testing
     platform: iOS

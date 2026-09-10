@@ -29,6 +29,6 @@ Each run requires a fresh evidence source. Cleanup is idempotent and must revoke
 
 ## Status
 
-M0/M1 are in progress; this is not a v0.1 release. UIKit and SwiftUI simulation hosts are available. Encrypted storage is integrated into the iOS simulation hosts; see [vault contract and remaining gates](Docs/Evidence-Vault.md). Camera, HTTP adapter, automatic retry, foreground reconciliation, and physical-device evidence remain unimplemented. See [assessment](Docs/Assessment.md), [state contract](Docs/State-Machine.md), and the [original plan](IdentityFlow-SDK-Plan.md).
+M0/M1 are in progress; this is not a v0.1 release. UIKit and SwiftUI simulation hosts are available. Image normalization and encrypted storage are integrated into the iOS simulation hosts; see [normalization](Docs/Image-Normalization.md) and [vault contract and remaining gates](Docs/Evidence-Vault.md). Camera, HTTP adapter, automatic retry, foreground reconciliation, and physical-device evidence remain unimplemented. See [assessment](Docs/Assessment.md), [state contract](Docs/State-Machine.md), and the [original plan](IdentityFlow-SDK-Plan.md).
 
 The optional progress continuation should use `AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))`. It finishes for accepted runs; callers own continuations for runs rejected during initial validation.

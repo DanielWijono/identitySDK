@@ -2,6 +2,7 @@ import UIKit
 import IdentityFlowCore
 import IdentityFlowDemoSupport
 import IdentityFlowSecurity
+import IdentityFlowCapture
 
 /// Sample-host UI only. It deliberately never requests camera or identity information.
 @MainActor
@@ -259,7 +260,7 @@ private final class SyntheticCardCapture: ConfirmedImageCapture {
     func confirmedJPEG(for side: DocumentSide) async throws -> Data {
         guard !cancelled else { throw CancellationError() }
         try Task.checkCancellation()
-        return UIGraphicsImageRenderer(size: CGSize(width: 320, height: 200)).jpegData(withCompressionQuality: 0.8) { context in
+        let generated = UIGraphicsImageRenderer(size: CGSize(width: 320, height: 200)).jpegData(withCompressionQuality: 0.8) { context in
             UIColor.systemGray6.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 320, height: 200))
             let text = "SIMULATION ONLY\nSynthetic \(side.rawValue)\nNot an identity document"
@@ -267,6 +268,9 @@ private final class SyntheticCardCapture: ConfirmedImageCapture {
                 .font: UIFont.systemFont(ofSize: 20), .foregroundColor: UIColor.black
             ])
         }
+        let normalized = try await ImageNormalizer.shared.normalize(generated)
+        guard !cancelled else { throw CancellationError() }
+        return normalized.jpeg
     }
     func cancel() { cancelled = true }
 }

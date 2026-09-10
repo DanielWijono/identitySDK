@@ -5,11 +5,14 @@ let package = Package(
     name: "IdentityFlow",
     platforms: [.iOS(.v16), .macOS(.v13)],
     products: [
+        .library(name: "IdentityFlowCapture", targets: ["IdentityFlowCapture"]),
         .library(name: "IdentityFlowSecurity", targets: ["IdentityFlowSecurity"]),
         .library(name: "IdentityFlowCore", targets: ["IdentityFlowCore"]),
         .library(name: "IdentityFlowDemoSupport", targets: ["IdentityFlowDemoSupport"])
     ],
     targets: [
+        .target(name: "IdentityFlowCapture"),
+        .testTarget(name: "IdentityFlowCaptureTests", dependencies: ["IdentityFlowCapture"]),
         .target(name: "IdentityFlowCore"),
         .target(name: "IdentityFlowSecurity", dependencies: ["IdentityFlowCore"]),
         .testTarget(name: "IdentityFlowSecurityTests", dependencies: ["IdentityFlowSecurity", "IdentityFlowCore"]),

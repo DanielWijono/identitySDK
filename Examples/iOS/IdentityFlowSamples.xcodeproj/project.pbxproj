@@ -12,10 +12,12 @@
 		4B64D195987ED12488C96001 /* SimulationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05E0492C4443BB2D28725C33 /* SimulationViewController.swift */; };
 		6E4713C26F07E98DCAF62C9C /* IdentityFlowDemoSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 57C30500CE2C5329D05554D0 /* IdentityFlowDemoSupport */; };
 		765EEB6F21EC0F940309786C /* IdentityFlowDemoSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 0EE7DCC080F62A591194C222 /* IdentityFlowDemoSupport */; };
+		8A4ADB80D9D259865373D2C6 /* IdentityFlowCapture in Frameworks */ = {isa = PBXBuildFile; productRef = CE85B9CC628B407790899562 /* IdentityFlowCapture */; };
 		8E2F8FBF052A2C0A598E7E2F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BD298DDBEEDBA42AA9B7781 /* AppDelegate.swift */; };
 		908F3046A4EA8D66F32A09FA /* IdentityFlowCore in Frameworks */ = {isa = PBXBuildFile; productRef = DB1C031CB0DF7AF2B666341B /* IdentityFlowCore */; };
 		B840CC1C496E40D72A16390E /* IdentityFlowSecurity in Frameworks */ = {isa = PBXBuildFile; productRef = B4109702173B5FB04EA9B8FB /* IdentityFlowSecurity */; };
 		C45ECA5AC0EA7FC646708509 /* IdentityFlowSecurity in Frameworks */ = {isa = PBXBuildFile; productRef = 7A9C659739DB0F48C3DAD14B /* IdentityFlowSecurity */; };
+		D49BBA4128C029F80A897C1D /* IdentityFlowCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 85A918276F046CE854E7DC27 /* IdentityFlowCapture */; };
 		D4C5B18536E9513A007FECF7 /* SimulationApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0D8BDDC29E322AA0163F1F /* SimulationApp.swift */; };
 		EFD362955BB35EC419B77A29 /* SimulationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05E0492C4443BB2D28725C33 /* SimulationViewController.swift */; };
 /* End PBXBuildFile section */
@@ -49,6 +51,7 @@
 				37338AFB7DF24E202E03FBBE /* IdentityFlowCore in Frameworks */,
 				765EEB6F21EC0F940309786C /* IdentityFlowDemoSupport in Frameworks */,
 				B840CC1C496E40D72A16390E /* IdentityFlowSecurity in Frameworks */,
+				8A4ADB80D9D259865373D2C6 /* IdentityFlowCapture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,6 +62,7 @@
 				908F3046A4EA8D66F32A09FA /* IdentityFlowCore in Frameworks */,
 				6E4713C26F07E98DCAF62C9C /* IdentityFlowDemoSupport in Frameworks */,
 				C45ECA5AC0EA7FC646708509 /* IdentityFlowSecurity in Frameworks */,
+				D49BBA4128C029F80A897C1D /* IdentityFlowCapture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -162,6 +166,7 @@
 				DB1C031CB0DF7AF2B666341B /* IdentityFlowCore */,
 				57C30500CE2C5329D05554D0 /* IdentityFlowDemoSupport */,
 				7A9C659739DB0F48C3DAD14B /* IdentityFlowSecurity */,
+				85A918276F046CE854E7DC27 /* IdentityFlowCapture */,
 			);
 			productName = UIKitSample;
 			productReference = B056EF7054ECE11A76FDD423 /* UIKitSample.app */;
@@ -183,6 +188,7 @@
 				ADAB20A912C17259B00E56D8 /* IdentityFlowCore */,
 				0EE7DCC080F62A591194C222 /* IdentityFlowDemoSupport */,
 				B4109702173B5FB04EA9B8FB /* IdentityFlowSecurity */,
+				CE85B9CC628B407790899562 /* IdentityFlowCapture */,
 			);
 			productName = SwiftUISample;
 			productReference = 5254AEBAC3D9B20B0A5ACAD7 /* SwiftUISample.app */;
@@ -561,6 +567,10 @@
 			isa = XCSwiftPackageProductDependency;
 			productName = IdentityFlowSecurity;
 		};
+		85A918276F046CE854E7DC27 /* IdentityFlowCapture */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IdentityFlowCapture;
+		};
 		ADAB20A912C17259B00E56D8 /* IdentityFlowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IdentityFlowCore;
@@ -568,6 +578,10 @@
 		B4109702173B5FB04EA9B8FB /* IdentityFlowSecurity */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IdentityFlowSecurity;
+		};
+		CE85B9CC628B407790899562 /* IdentityFlowCapture */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IdentityFlowCapture;
 		};
 		DB1C031CB0DF7AF2B666341B /* IdentityFlowCore */ = {
 			isa = XCSwiftPackageProductDependency;

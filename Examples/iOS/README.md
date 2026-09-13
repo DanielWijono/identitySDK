@@ -13,3 +13,13 @@ xcodegen generate --spec Examples/iOS/project.yml
 ```
 
 Choose UIKitSample and press ⌘U for the UI tests. They exercise consent gating, the four outcomes, front/back review, retake, cancellation during review, and background/foreground followed by another run. The apps target iOS 16 and Swift 6. A physical device requires your own signing team; live camera capture is not enabled. The standalone camera component is compiled but disconnected pending device checks; see ../../Docs/Camera-Capture.md. The scheme also runs fake-camera component tests without requesting camera access.
+
+## Live camera hardware test
+
+Choose UIKitSample and a physical iPhone in Xcode. Select your development team under Signing & Capabilities, then Run. Tap **Test live camera** (scroll down if needed), allow camera access, and photograph a printed test card. Tap **Take photo**, **Retake**, then **Use this image**. Confirmation returns to the sample and discards the image. Nothing is saved or uploaded. Cancellation or leaving the app also ends capture. This separate test does not validate encrypted storage or connect the camera to verification.
+
+### Integrated front/back camera simulation
+
+Choose **Live camera** under Capture input, select Approve, accept the local demo disclosure, and tap **Start simulation**. Use a printed test card, not a real ID. Photograph the front, review or Retake, then **Use this image**. Repeat for the back. Finish within three minutes. The result should say **Simulated approval. No identity was verified.** Confirmed photos are temporarily encrypted on-device and cleaned up at the end; transfers and results remain local simulations.
+
+Repeat with **Cancel capture**, and with locking/unlocking during front review or back capture. Expect cancellation and then a successful fresh run. **Test live camera** remains a separate single-image discard test. Simulator users should choose **Generated cards**.

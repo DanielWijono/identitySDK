@@ -2,6 +2,7 @@ import XCTest
 import UIKit
 import IdentityFlowCapture
 import IdentityFlowUI
+@testable import UIKitSample
 
 private actor FakeCamera: CameraDevice {
     var starts = 0
@@ -157,4 +158,46 @@ final class CameraComponentTests: XCTestCase {
         XCTAssertEqual(authorization, .unavailable)
         #endif
     }
+    func testLiveAdapterSequencesSidesAndRejectsCallbacksAfterCancel() async throws {
+        let host = UIViewController()
+        host.loadViewIfNeeded()
+        let cover = UIView(), background = UIView()
+        host.view.addSubview(background)
+        host.view.addSubview(cover)
+        let camera = FakeCamera(bytes: jpeg())
+        var screens: [CameraReviewViewController] = []
+        var cancellationRequests = 0
+        let capture = LiveCardCapture(host: host, privacyCover: cover, background: background,
+            makeScreen: { description in
+                let screen = CameraReviewViewController(sideDescription: description, makeCamera: { camera })
+                screens.append(screen)
+                return screen
+            }, onCancel: { cancellationRequests += 1 })
+        let front = Task { try await capture.confirmedJPEG(for: .front) }
+        try await until { screens.count == 1 }
+        XCTAssertTrue(background.isHidden)
+        XCTAssertTrue(host.children.first === screens[0])
+        XCTAssertTrue(host.view.subviews.last === cover)
+        let bytes = jpeg()
+        screens[0].onConfirm?(bytes)
+        let result = try await front.value
+        XCTAssertEqual(result, bytes)
+        XCTAssertTrue(host.children.isEmpty)
+        XCTAssertFalse(background.isHidden)
+        let back = Task { try await capture.confirmedJPEG(for: .back) }
+        try await until { screens.count == 2 }
+        let lateConfirm = screens[1].onConfirm
+        screens[1].onCancel?()
+        XCTAssertEqual(cancellationRequests, 1)
+        capture.hidePreview()
+        lateConfirm?(bytes)
+        capture.cancel()
+        capture.cancel()
+        do { _ = try await back.value; XCTFail("Cancelled capture returned bytes") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertTrue(host.children.isEmpty)
+        do { _ = try await capture.confirmedJPEG(for: .front); XCTFail("Cancelled adapter restarted") }
+        catch { XCTAssertTrue(error is CancellationError) }
+    }
+
 }

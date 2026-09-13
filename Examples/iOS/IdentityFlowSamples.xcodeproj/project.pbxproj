@@ -3,10 +3,11 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AB1234567890123456789001 /* StorageDeviceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1234567890123456789002 /* StorageDeviceTests.swift */; };
 		0668F2C9E4DE2A8D6BFAAEA5 /* CameraComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD3EFCB3BD049EC1479E810 /* CameraComponentTests.swift */; };
 		0B80562AE55687C2927F142C /* SimulationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB399D3617D420ABCEB1F2D /* SimulationUITests.swift */; };
 		1689EAF652EAF0997F4A0C74 /* IdentityFlowCapture in Frameworks */ = {isa = PBXBuildFile; productRef = CE85B9CC628B407790899562 /* IdentityFlowCapture */; };
@@ -45,12 +46,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AB1234567890123456789002 /* StorageDeviceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageDeviceTests.swift; sourceTree = "<group>"; };
 		05E0492C4443BB2D28725C33 /* SimulationViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationViewController.swift; sourceTree = "<group>"; };
 		4CD83BB2CC8BEE41BD72B2DD /* IdentitySDK */ = {isa = PBXFileReference; lastKnownFileType = folder; name = IdentitySDK; path = ../..; sourceTree = SOURCE_ROOT; };
 		5254AEBAC3D9B20B0A5ACAD7 /* SwiftUISample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SwiftUISample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B0D8BDDC29E322AA0163F1F /* SimulationApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationApp.swift; sourceTree = "<group>"; };
 		6EB399D3617D420ABCEB1F2D /* SimulationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationUITests.swift; sourceTree = "<group>"; };
-		73156E0413930923EEE6C1E4 /* CameraComponentTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CameraComponentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		73156E0413930923EEE6C1E4 /* CameraComponentTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CameraComponentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7CD3EFCB3BD049EC1479E810 /* CameraComponentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraComponentTests.swift; sourceTree = "<group>"; };
 		9BD298DDBEEDBA42AA9B7781 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B056EF7054ECE11A76FDD423 /* UIKitSample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = UIKitSample.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -135,6 +137,7 @@
 			isa = PBXGroup;
 			children = (
 				7CD3EFCB3BD049EC1479E810 /* CameraComponentTests.swift */,
+				AB1234567890123456789002 /* StorageDeviceTests.swift */,
 			);
 			path = ComponentTests;
 			sourceTree = "<group>";
@@ -314,6 +317,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0668F2C9E4DE2A8D6BFAAEA5 /* CameraComponentTests.swift in Sources */,
+				AB1234567890123456789001 /* StorageDeviceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -386,6 +390,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = 5H589R53ZA;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -603,6 +608,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = 5H589R53ZA;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

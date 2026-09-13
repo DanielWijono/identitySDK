@@ -57,3 +57,22 @@ The full package suite passed all 33 tests. The optional camera engine and UIKit
 On iPhone 16 Pro Simulator, iOS 18.3.1, the combined run passed 10 tests: the existing 4 UI tests and 6 new camera component tests. Following explicit controller-deinitialization cleanup, all 7 camera component tests passed. Coverage uses an injected fake camera for confirm-once delivery, retake, invalid-image recovery, interruption retry, inactivity cleanup, late photo completion after cancellation and release of an unpresented controller. The real camera actor is tested only for rejection after stop; the simulator authorization check returns unavailable without prompting. A test-only weak-reference warning was then removed and the release test rerun.
 
 The iPhone 15 Pro was available, but the user deferred physical testing. No phone installation, signing changes or lock/unlock checks were performed. Hardware capture, permissions, preview/still alignment, interruption delivery, resource/performance behavior and real protected-file denial remain unverified. This is camera preparation, not completion of M3 or approval to process real identity documents. See Camera-Capture.md and Device-Validation.md.
+
+### Standalone hardware-test entry point — 13 September 2026
+
+Added Test live camera to the shared sample host, with explicit permission preflight and discarded confirmation bytes. UIKitSample builds passed for simulator and the selected iPhone 14 using the team already selected in the local Xcode project. Installation succeeded on iOS 17.3; launch was rejected by iOS with a signature/entitlement/developer-trust error. User trust must be checked before capture can be exercised. No hardware camera or storage validation is claimed. Existing local Xcode project edits were preserved.
+
+After the user trusted the developer on the iPhone 14, devicectl successfully launched UIKitSample at 10:10 Asia/Jakarta. Live preview and capture still require user observation; launch success alone does not validate them.
+
+### Physical storage checks — 13 September 2026
+
+`CameraComponentTests/StorageDeviceTests` ran in the signed UIKitSample host on the user-selected iPhone 14, iOS 17.3. xcresult reports 2 passed, 0 failed, 0 skipped. Verified real Keychain attributes, complete file protection, root backup exclusion, ciphertext round-trip, replacement and cleanup revocation, simulated inactivity and isolated startup sweep. See Device-Validation.md for limitations and evidence path. Manual lock/unlock and actual process termination remain pending.
+
+## Live camera integration — September 13, 2026
+
+- UIKit simulator regression: 12 passed, zero failures/skips (8 camera/adapter tests and 4 simulation UI tests). Artifact: `/tmp/identityflow-uikit/Logs/Test/Test-UIKitSample-2026.09.13_14-33-56-+0700.xcresult`.
+- Adapter test covers sequential front/back children below the privacy cover, removal, cancellation, rejection of late confirmation, idempotent cleanup, and prevention of reuse.
+- Signed iPhone 14 build and installation succeeded. Launch was denied because the device was locked; user must unlock/open the app.
+- Actual integrated live-camera behavior and complete physical security gate remain pending. No real identity verification or network upload was added.
+
+- Final-source focused rerun passed: live adapter cancellation and simulator camera-unavailable recovery (2 tests). Artifact: `/tmp/identityflow-uikit/Logs/Test/Test-UIKitSample-2026.09.13_14-37-08-+0700.xcresult`. SwiftUI simulator build also passed.

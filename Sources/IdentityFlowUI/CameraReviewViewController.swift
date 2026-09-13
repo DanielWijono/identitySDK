@@ -2,7 +2,7 @@
 import UIKit
 import IdentityFlowCapture
 
-/// Standalone, portrait-first camera/review component. Not yet connected to the sample flow.
+/// Portrait-first camera/review component, also embedded by the sample flow.
 /// Request permission before presenting. The caller owns accepted JPEG bytes and their cleanup.
 @MainActor
 public final class CameraReviewViewController: UIViewController {

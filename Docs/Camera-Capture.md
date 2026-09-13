@@ -1,6 +1,8 @@
-# Camera preparation (not enabled in the sample)
+# Camera capture and standalone hardware test
 
-The optional iOS-only `StillCamera` in IdentityFlowCapture and `CameraReviewViewController` in IdentityFlowUI prepare the next physical-capture milestone. Both sample schemes build these products, but the sample workflow continues to use generated cards. No live-camera entry point is enabled. The original plan's core/vault gates and the physical storage checks remain prerequisites for connecting it to VaultEvidenceSource.
+The sample now offers **Generated cards** or **Live camera** input. Live camera requests permission before starting a session, captures and reviews front/back printed test cards, and passes confirmed normalized JPEGs through VaultEvidenceSource to the local simulated provider. Confirmed images are temporarily encrypted, then cleaned up on completion/cancellation. No network upload or identity verification occurs. The separate **Test live camera** button remains a memory-only, single-image hardware check.
+
+This is a development test-card path. Two physical storage tests and user-reported lock/restart checks are recorded in Device-Validation.md; the complete physical security gate is still pending. Real identity documents remain out of scope.
 
 ## Ownership and behavior
 
@@ -14,8 +16,8 @@ The optional iOS-only `StillCamera` in IdentityFlowCapture and `CameraReviewView
 
 The host must provide NSCameraUsageDescription (already present in the example project). It should inspect CameraAuthorization.current and call request() only after an explicit camera action and before starting a vault-backed verification session. This keeps system permission-prompt inactivity outside the active session. Unavailable camera hardware, including the simulator, returns unavailable without prompting. Denied/restricted access requires an actionable host recovery path; the standalone screen explains how to return through Settings and never requests access implicitly.
 
-The host will need to embed/present the review screen, route cancellation to VerificationClient, pass the confirmed JPEG through ConfirmedImageCapture, and retain the existing lifecycle cover and cleanup handling. Do not connect this path or use real identity documents before recording the device gate. For initial hardware testing use a printed synthetic card.
+The sample embeds each review screen below its privacy cover. Cancellation reaches VerificationClient before cleanup resolves pending capture; callbacks from removed screens are invalidated. Both sides share a three-minute session deadline. Generated cards remain the simulator default. Use printed test cards while the remaining device gate is completed.
 
-Still pending: physical permission/denial/revocation tests, still/preview orientation comparison, interrupted-session and start/stop stress tests, file/key lock-state validation, SDK flow integration, crop confirmation, rectangle guidance, minimum-iOS hardware, VoiceOver, maximum Dynamic Type and performance measurements. Simulator fake-camera tests do not establish any of these hardware properties.
+Still pending: physical permission/denial/revocation tests, still/preview orientation comparison, interrupted-session and start/stop stress tests, file/key lock-state validation, full SDK facade, crop confirmation, rectangle guidance, minimum-iOS hardware, VoiceOver, maximum Dynamic Type and performance measurements. Simulator fake-camera tests do not establish any of these hardware properties.
 
 References: [Apple capture-session setup](https://developer.apple.com/documentation/avfoundation/setting-up-a-capture-session) and [requesting camera authorization](https://developer.apple.com/documentation/avfoundation/requesting-authorization-to-capture-and-save-media).

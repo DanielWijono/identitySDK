@@ -14,7 +14,9 @@ final class SimulationViewController: UIViewController {
     private let status = UILabel()
     private let retry = UIButton(type: .system)
     private let privacyCover = UIView()
+    private let contentScroll = UIScrollView()
     private let vault = EvidenceVault.shared
+    private var activeCapture: SyntheticCardCapture?
     private var storageReady = false
     private var lifecycleGeneration = UUID()
     private var recoveryClient: VerificationClient?
@@ -57,7 +59,7 @@ final class SimulationViewController: UIViewController {
         let stack = UIStackView(arrangedSubviews: [titleLabel, disclosure, label("Simulated outcome", style: .headline), scenarios, consentRow, start, cancel, retry, status])
         stack.axis = .vertical
         stack.spacing = 24
-        let scroll = UIScrollView()
+        let scroll = contentScroll
         scroll.translatesAutoresizingMaskIntoConstraints = false
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scroll)
@@ -90,6 +92,7 @@ final class SimulationViewController: UIViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        activeCapture?.hidePreview()
         runTask?.cancel()
     }
 
@@ -117,6 +120,7 @@ final class SimulationViewController: UIViewController {
         lifecycleGeneration = UUID()
         storageReady = false
         privacyCover.isHidden = false
+        activeCapture?.hidePreview()
         runTask?.cancel()
         updateButtons()
     }
@@ -162,7 +166,10 @@ final class SimulationViewController: UIViewController {
         updateButtons()
     }
 
-    @objc private func cancelSimulation() { runTask?.cancel() }
+    @objc private func cancelSimulation() {
+        activeCapture?.hidePreview()
+        runTask?.cancel()
+    }
 
     @objc private func startSimulation() {
         guard runTask == nil, consent.isOn, storageReady, recoveryClient == nil else { return }
@@ -175,8 +182,12 @@ final class SimulationViewController: UIViewController {
         cancel.isHidden = false
         status.text = "Starting simulation…"
         let session = VerificationSession(id: UUID().uuidString, token: "synthetic-demo-token", expiresAt: Date().addingTimeInterval(60))
+        let capture = SyntheticCardCapture(host: self, privacyCover: privacyCover, background: contentScroll) { [weak self] in
+            self?.cancelSimulation()
+        }
+        activeCapture = capture
         let source = VaultEvidenceSource(sessionID: session.id, expiresAt: session.expiresAt,
-                                         capture: SyntheticCardCapture(), vault: vault)
+                                         capture: capture, vault: vault)
         runTask = Task { [weak self] in
             let progressTask = Task { [weak self] in
                 for await progress in stream { self?.status.text = Self.message(for: progress) }
@@ -198,6 +209,8 @@ final class SimulationViewController: UIViewController {
             continuation.finish()
             await progressTask.value
             guard let self else { return }
+            self.activeCapture?.cancel()
+            self.activeCapture = nil
             self.status.text = message
             self.runTask = nil
             self.consent.isEnabled = true
@@ -253,24 +266,152 @@ private struct PacedSimulationProvider: VerificationProvider {
     func cancel(session: VerificationSession) async { await provider.cancel(session: session) }
 }
 
-/// Generates a small JPEG containing only a synthetic label; never accesses camera or photo library.
+/// Sample-only review adapter. Unconfirmed pixels stay in memory and never reach the vault.
 @MainActor
 private final class SyntheticCardCapture: ConfirmedImageCapture {
+    private weak var host: UIViewController?
+    private weak var privacyCover: UIView?
+    private weak var background: UIView?
+    private let onCancel: () -> Void
     private var cancelled = false
+    private var pending: CheckedContinuation<Data, any Error>?
+    private var jpeg: Data?
+    private var side: DocumentSide = .front
+    private var attempt = 0
+    private var panel: UIView?
+    private let preview = UIImageView()
+    private let heading = UILabel()
+
+    init(host: UIViewController, privacyCover: UIView, background: UIView, onCancel: @escaping () -> Void) {
+        self.onCancel = onCancel
+        self.host = host
+        self.privacyCover = privacyCover
+        self.background = background
+    }
+
     func confirmedJPEG(for side: DocumentSide) async throws -> Data {
-        guard !cancelled else { throw CancellationError() }
         try Task.checkCancellation()
-        let generated = UIGraphicsImageRenderer(size: CGSize(width: 320, height: 200)).jpegData(withCompressionQuality: 0.8) { context in
-            UIColor.systemGray6.setFill()
+        guard !cancelled, pending == nil else { throw CancellationError() }
+        self.side = side
+        attempt = 0
+        let selected = try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                pending = continuation
+                showReview()
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in self?.cancel() }
+        }
+        try Task.checkCancellation()
+        let normalized = try await ImageNormalizer.shared.normalize(selected)
+        guard !cancelled else { throw CancellationError() }
+        return normalized.jpeg
+    }
+
+    private func showReview() {
+        guard let host, let privacyCover else { cancel(); return }
+        let container = UIView()
+        container.backgroundColor = .systemBackground
+        container.accessibilityViewIsModal = true
+        container.translatesAutoresizingMaskIntoConstraints = false
+        host.view.insertSubview(container, belowSubview: privacyCover)
+        NSLayoutConstraint.activate([
+            container.topAnchor.constraint(equalTo: host.view.safeAreaLayoutGuide.topAnchor),
+            container.bottomAnchor.constraint(equalTo: host.view.bottomAnchor),
+            container.leadingAnchor.constraint(equalTo: host.view.leadingAnchor),
+            container.trailingAnchor.constraint(equalTo: host.view.trailingAnchor)
+        ])
+        panel = container
+        background?.isHidden = true
+        heading.font = .preferredFont(forTextStyle: .title1)
+        heading.adjustsFontForContentSizeCategory = true
+        heading.numberOfLines = 0
+        heading.accessibilityTraits = .header
+        heading.accessibilityIdentifier = "reviewHeading"
+        preview.contentMode = .scaleAspectFit
+        preview.isAccessibilityElement = true
+        preview.heightAnchor.constraint(equalToConstant: 200).isActive = true
+        let disclosure = UILabel()
+        disclosure.text = "SIMULATION ONLY. Review this generated card, then confirm each side. Retake replaces the preview. No identity is verified."
+        disclosure.font = .preferredFont(forTextStyle: .body)
+        disclosure.adjustsFontForContentSizeCategory = true
+        disclosure.numberOfLines = 0
+        let confirm = button("Use this image", action: #selector(confirmImage))
+        confirm.configuration = .filled()
+        let retake = button("Retake", action: #selector(retakeImage))
+        let cancel = button("Cancel simulation", action: #selector(cancelReview))
+        let stack = UIStackView(arrangedSubviews: [heading, disclosure, preview, confirm, retake, cancel])
+        stack.axis = .vertical
+        stack.spacing = 20
+        let scroll = UIScrollView()
+        scroll.translatesAutoresizingMaskIntoConstraints = false
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(scroll)
+        scroll.addSubview(stack)
+        NSLayoutConstraint.activate([
+            scroll.topAnchor.constraint(equalTo: container.topAnchor),
+            scroll.bottomAnchor.constraint(equalTo: container.safeAreaLayoutGuide.bottomAnchor),
+            scroll.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            scroll.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            stack.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: 24),
+            stack.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -24),
+            stack.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -24),
+            stack.widthAnchor.constraint(equalTo: scroll.frameLayoutGuide.widthAnchor, constant: -48)
+        ])
+        retakeImage()
+        UIAccessibility.post(notification: .screenChanged, argument: heading)
+    }
+
+    private func button(_ title: String, action: Selector) -> UIButton {
+        let button = UIButton(type: .system)
+        button.configuration = .bordered()
+        button.setTitle(title, for: .normal)
+        button.addTarget(self, action: action, for: .touchUpInside)
+        return button
+    }
+
+    @objc private func retakeImage() {
+        guard pending != nil, !cancelled else { return }
+        attempt += 1
+        heading.text = "Review \(side.rawValue) · Take \(attempt)"
+        jpeg = UIGraphicsImageRenderer(size: CGSize(width: 320, height: 200)).jpegData(withCompressionQuality: 0.8) { context in
+            UIColor(white: 0.94, alpha: 1).setFill()
             context.fill(CGRect(x: 0, y: 0, width: 320, height: 200))
-            let text = "SIMULATION ONLY\nSynthetic \(side.rawValue)\nNot an identity document"
+            let text = "SIMULATION ONLY\nSynthetic \(side.rawValue) · Take \(attempt)\nNot an identity document"
             (text as NSString).draw(in: CGRect(x: 20, y: 30, width: 280, height: 140), withAttributes: [
                 .font: UIFont.systemFont(ofSize: 20), .foregroundColor: UIColor.black
             ])
         }
-        let normalized = try await ImageNormalizer.shared.normalize(generated)
-        guard !cancelled else { throw CancellationError() }
-        return normalized.jpeg
+        preview.image = jpeg.flatMap { UIImage(data: $0) }
+        preview.accessibilityLabel = "Synthetic \(side.rawValue) card, take \(attempt). Not an identity document."
     }
-    func cancel() { cancelled = true }
+
+    @objc private func confirmImage() {
+        guard !cancelled, let pending, let jpeg else { return }
+        self.pending = nil
+        clearPreview()
+        pending.resume(returning: jpeg)
+    }
+
+    @objc private func cancelReview() { onCancel() }
+
+    // Hide pixels immediately; the core reserves cancellation before cleanup resumes capture.
+    func hidePreview() { clearPreview() }
+
+    func cancel() {
+        cancelled = true
+        let continuation = pending
+        pending = nil
+        clearPreview()
+        continuation?.resume(throwing: CancellationError())
+    }
+
+    private func clearPreview() {
+        jpeg = nil
+        preview.image = nil
+        panel?.removeFromSuperview()
+        panel = nil
+        background?.isHidden = false
+    }
 }

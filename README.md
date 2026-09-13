@@ -17,7 +17,7 @@ The example is an independent local package consumer. Its output is visibly labe
 
 ## Run on iPhone Simulator
 
-Open `Examples/iOS/IdentityFlowSamples.xcodeproj`, select **UIKitSample** or **SwiftUISample**, choose an iPhone simulator, and press **⌘R**. Accept the sample disclosure, then start a simulation. Both apps offer approval, rejection, pending, failure and cancellation. See [sample instructions](Examples/iOS/README.md).
+Open `Examples/iOS/IdentityFlowSamples.xcodeproj`, select **UIKitSample** or **SwiftUISample**, choose an iPhone simulator, and press **⌘R**. Accept the sample disclosure, then start a simulation. Review the synthetic front and back images, use **Retake** to replace a preview, and choose **Use this image** to confirm each side. Both apps offer approval, rejection, pending, failure and cancellation. See [sample instructions](Examples/iOS/README.md).
 
 ## Integrate the foundation
 

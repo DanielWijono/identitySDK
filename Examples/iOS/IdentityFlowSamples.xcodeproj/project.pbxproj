@@ -7,22 +7,34 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0668F2C9E4DE2A8D6BFAAEA5 /* CameraComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD3EFCB3BD049EC1479E810 /* CameraComponentTests.swift */; };
 		0B80562AE55687C2927F142C /* SimulationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6EB399D3617D420ABCEB1F2D /* SimulationUITests.swift */; };
-		37338AFB7DF24E202E03FBBE /* IdentityFlowCore in Frameworks */ = {isa = PBXBuildFile; productRef = ADAB20A912C17259B00E56D8 /* IdentityFlowCore */; };
+		1689EAF652EAF0997F4A0C74 /* IdentityFlowCapture in Frameworks */ = {isa = PBXBuildFile; productRef = CE85B9CC628B407790899562 /* IdentityFlowCapture */; };
+		244B5302D6D1AB46C37FF543 /* IdentityFlowCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 85A918276F046CE854E7DC27 /* IdentityFlowCapture */; };
+		37338AFB7DF24E202E03FBBE /* IdentityFlowUI in Frameworks */ = {isa = PBXBuildFile; productRef = 2338341D8CB4541C1489D4C4 /* IdentityFlowUI */; };
 		4B64D195987ED12488C96001 /* SimulationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05E0492C4443BB2D28725C33 /* SimulationViewController.swift */; };
-		6E4713C26F07E98DCAF62C9C /* IdentityFlowDemoSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 57C30500CE2C5329D05554D0 /* IdentityFlowDemoSupport */; };
-		765EEB6F21EC0F940309786C /* IdentityFlowDemoSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 0EE7DCC080F62A591194C222 /* IdentityFlowDemoSupport */; };
-		8A4ADB80D9D259865373D2C6 /* IdentityFlowCapture in Frameworks */ = {isa = PBXBuildFile; productRef = CE85B9CC628B407790899562 /* IdentityFlowCapture */; };
+		6E4713C26F07E98DCAF62C9C /* IdentityFlowCore in Frameworks */ = {isa = PBXBuildFile; productRef = DB1C031CB0DF7AF2B666341B /* IdentityFlowCore */; };
+		765EEB6F21EC0F940309786C /* IdentityFlowCore in Frameworks */ = {isa = PBXBuildFile; productRef = ADAB20A912C17259B00E56D8 /* IdentityFlowCore */; };
+		8A4ADB80D9D259865373D2C6 /* IdentityFlowSecurity in Frameworks */ = {isa = PBXBuildFile; productRef = B4109702173B5FB04EA9B8FB /* IdentityFlowSecurity */; };
 		8E2F8FBF052A2C0A598E7E2F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BD298DDBEEDBA42AA9B7781 /* AppDelegate.swift */; };
-		908F3046A4EA8D66F32A09FA /* IdentityFlowCore in Frameworks */ = {isa = PBXBuildFile; productRef = DB1C031CB0DF7AF2B666341B /* IdentityFlowCore */; };
-		B840CC1C496E40D72A16390E /* IdentityFlowSecurity in Frameworks */ = {isa = PBXBuildFile; productRef = B4109702173B5FB04EA9B8FB /* IdentityFlowSecurity */; };
-		C45ECA5AC0EA7FC646708509 /* IdentityFlowSecurity in Frameworks */ = {isa = PBXBuildFile; productRef = 7A9C659739DB0F48C3DAD14B /* IdentityFlowSecurity */; };
-		D49BBA4128C029F80A897C1D /* IdentityFlowCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 85A918276F046CE854E7DC27 /* IdentityFlowCapture */; };
+		908F3046A4EA8D66F32A09FA /* IdentityFlowUI in Frameworks */ = {isa = PBXBuildFile; productRef = 27F9F348864F2189094706D4 /* IdentityFlowUI */; };
+		9C396CF8E4E6D45221D843AA /* IdentityFlowCapture in Frameworks */ = {isa = PBXBuildFile; productRef = 0B4FD8371913C0D0090B3554 /* IdentityFlowCapture */; };
+		ACB911EBB1C989E12E5FAFF0 /* IdentityFlowUI in Frameworks */ = {isa = PBXBuildFile; productRef = EDE37E0EF9A147EFD1C0C7FD /* IdentityFlowUI */; };
+		B840CC1C496E40D72A16390E /* IdentityFlowDemoSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 0EE7DCC080F62A591194C222 /* IdentityFlowDemoSupport */; };
+		C45ECA5AC0EA7FC646708509 /* IdentityFlowDemoSupport in Frameworks */ = {isa = PBXBuildFile; productRef = 57C30500CE2C5329D05554D0 /* IdentityFlowDemoSupport */; };
+		D49BBA4128C029F80A897C1D /* IdentityFlowSecurity in Frameworks */ = {isa = PBXBuildFile; productRef = 7A9C659739DB0F48C3DAD14B /* IdentityFlowSecurity */; };
 		D4C5B18536E9513A007FECF7 /* SimulationApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B0D8BDDC29E322AA0163F1F /* SimulationApp.swift */; };
 		EFD362955BB35EC419B77A29 /* SimulationViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05E0492C4443BB2D28725C33 /* SimulationViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		452BF5EBD50F956F9599364C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B04B19DF9F99AF02C15CD087 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 4ED0241FC5020A73C2CE638E;
+			remoteInfo = UIKitSample;
+		};
 		F1C8D42490AE4465B516372B /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = B04B19DF9F99AF02C15CD087 /* Project object */;
@@ -38,6 +50,8 @@
 		5254AEBAC3D9B20B0A5ACAD7 /* SwiftUISample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SwiftUISample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B0D8BDDC29E322AA0163F1F /* SimulationApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationApp.swift; sourceTree = "<group>"; };
 		6EB399D3617D420ABCEB1F2D /* SimulationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulationUITests.swift; sourceTree = "<group>"; };
+		73156E0413930923EEE6C1E4 /* CameraComponentTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CameraComponentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7CD3EFCB3BD049EC1479E810 /* CameraComponentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraComponentTests.swift; sourceTree = "<group>"; };
 		9BD298DDBEEDBA42AA9B7781 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		B056EF7054ECE11A76FDD423 /* UIKitSample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = UIKitSample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C1B12EB1B19BD9C879B9984C /* SampleUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = SampleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -48,10 +62,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				37338AFB7DF24E202E03FBBE /* IdentityFlowCore in Frameworks */,
-				765EEB6F21EC0F940309786C /* IdentityFlowDemoSupport in Frameworks */,
-				B840CC1C496E40D72A16390E /* IdentityFlowSecurity in Frameworks */,
-				8A4ADB80D9D259865373D2C6 /* IdentityFlowCapture in Frameworks */,
+				37338AFB7DF24E202E03FBBE /* IdentityFlowUI in Frameworks */,
+				765EEB6F21EC0F940309786C /* IdentityFlowCore in Frameworks */,
+				B840CC1C496E40D72A16390E /* IdentityFlowDemoSupport in Frameworks */,
+				8A4ADB80D9D259865373D2C6 /* IdentityFlowSecurity in Frameworks */,
+				1689EAF652EAF0997F4A0C74 /* IdentityFlowCapture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,10 +74,20 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				908F3046A4EA8D66F32A09FA /* IdentityFlowCore in Frameworks */,
-				6E4713C26F07E98DCAF62C9C /* IdentityFlowDemoSupport in Frameworks */,
-				C45ECA5AC0EA7FC646708509 /* IdentityFlowSecurity in Frameworks */,
-				D49BBA4128C029F80A897C1D /* IdentityFlowCapture in Frameworks */,
+				908F3046A4EA8D66F32A09FA /* IdentityFlowUI in Frameworks */,
+				6E4713C26F07E98DCAF62C9C /* IdentityFlowCore in Frameworks */,
+				C45ECA5AC0EA7FC646708509 /* IdentityFlowDemoSupport in Frameworks */,
+				D49BBA4128C029F80A897C1D /* IdentityFlowSecurity in Frameworks */,
+				244B5302D6D1AB46C37FF543 /* IdentityFlowCapture in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D005545FF6FCF3BC19C5A797 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				ACB911EBB1C989E12E5FAFF0 /* IdentityFlowUI in Frameworks */,
+				9C396CF8E4E6D45221D843AA /* IdentityFlowCapture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +105,7 @@
 		033593E01F0490488E75E76B = {
 			isa = PBXGroup;
 			children = (
+				8B458BBE4BDF87FCBCC5B03A /* ComponentTests */,
 				DC9D3A2757CD51A610BE70C0 /* Packages */,
 				EE98022C79D55B518ED9988E /* Shared */,
 				0170DDCA56E3E18E4A1A3697 /* SwiftUIHost */,
@@ -105,9 +131,18 @@
 			path = UIKitHost;
 			sourceTree = "<group>";
 		};
+		8B458BBE4BDF87FCBCC5B03A /* ComponentTests */ = {
+			isa = PBXGroup;
+			children = (
+				7CD3EFCB3BD049EC1479E810 /* CameraComponentTests.swift */,
+			);
+			path = ComponentTests;
+			sourceTree = "<group>";
+		};
 		B24B798DCE087A7BA6870D06 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				73156E0413930923EEE6C1E4 /* CameraComponentTests.xctest */,
 				C1B12EB1B19BD9C879B9984C /* SampleUITests.xctest */,
 				5254AEBAC3D9B20B0A5ACAD7 /* SwiftUISample.app */,
 				B056EF7054ECE11A76FDD423 /* UIKitSample.app */,
@@ -163,6 +198,7 @@
 			);
 			name = UIKitSample;
 			packageProductDependencies = (
+				27F9F348864F2189094706D4 /* IdentityFlowUI */,
 				DB1C031CB0DF7AF2B666341B /* IdentityFlowCore */,
 				57C30500CE2C5329D05554D0 /* IdentityFlowDemoSupport */,
 				7A9C659739DB0F48C3DAD14B /* IdentityFlowSecurity */,
@@ -171,6 +207,27 @@
 			productName = UIKitSample;
 			productReference = B056EF7054ECE11A76FDD423 /* UIKitSample.app */;
 			productType = "com.apple.product-type.application";
+		};
+		5261339D66D9A965FAE1373B /* CameraComponentTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB81DBA743377BF27F6EF5FA /* Build configuration list for PBXNativeTarget "CameraComponentTests" */;
+			buildPhases = (
+				24134A00D4917C0FD982C314 /* Sources */,
+				D005545FF6FCF3BC19C5A797 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				735101D13439D60A0AE347B2 /* PBXTargetDependency */,
+			);
+			name = CameraComponentTests;
+			packageProductDependencies = (
+				EDE37E0EF9A147EFD1C0C7FD /* IdentityFlowUI */,
+				0B4FD8371913C0D0090B3554 /* IdentityFlowCapture */,
+			);
+			productName = CameraComponentTests;
+			productReference = 73156E0413930923EEE6C1E4 /* CameraComponentTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		D212619B25040BF331A7A5FE /* SwiftUISample */ = {
 			isa = PBXNativeTarget;
@@ -185,6 +242,7 @@
 			);
 			name = SwiftUISample;
 			packageProductDependencies = (
+				2338341D8CB4541C1489D4C4 /* IdentityFlowUI */,
 				ADAB20A912C17259B00E56D8 /* IdentityFlowCore */,
 				0EE7DCC080F62A591194C222 /* IdentityFlowDemoSupport */,
 				B4109702173B5FB04EA9B8FB /* IdentityFlowSecurity */,
@@ -210,6 +268,9 @@
 					4ED0241FC5020A73C2CE638E = {
 						ProvisioningStyle = Automatic;
 					};
+					5261339D66D9A965FAE1373B = {
+						ProvisioningStyle = Automatic;
+					};
 					D212619B25040BF331A7A5FE = {
 						ProvisioningStyle = Automatic;
 					};
@@ -230,6 +291,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				5261339D66D9A965FAE1373B /* CameraComponentTests */,
 				01E1358AA9B6B3D8181C1E14 /* SampleUITests */,
 				D212619B25040BF331A7A5FE /* SwiftUISample */,
 				4ED0241FC5020A73C2CE638E /* UIKitSample */,
@@ -244,6 +306,14 @@
 			files = (
 				8E2F8FBF052A2C0A598E7E2F /* AppDelegate.swift in Sources */,
 				4B64D195987ED12488C96001 /* SimulationViewController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		24134A00D4917C0FD982C314 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0668F2C9E4DE2A8D6BFAAEA5 /* CameraComponentTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -267,6 +337,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		735101D13439D60A0AE347B2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 4ED0241FC5020A73C2CE638E /* UIKitSample */;
+			targetProxy = 452BF5EBD50F956F9599364C /* PBXContainerItemProxy */;
+		};
 		C27EE36E4C4C6A262F1452C4 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 4ED0241FC5020A73C2CE638E /* UIKitSample */;
@@ -306,6 +381,22 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		3BAAC57F95BAFA9FF833AB8B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.identityflow.samples.camera-tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UIKitSample.app/UIKitSample";
+			};
+			name = Debug;
 		};
 		577BD05502F2946BD7CF6D40 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -387,6 +478,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Photograph a test card for the local IdentityFlow capture demo. Images are not uploaded.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -489,6 +581,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Photograph a test card for the local IdentityFlow capture demo. Images are not uploaded.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -505,6 +598,22 @@
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
+		};
+		F6E190C8C3DAEF20D94FCB02 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.identityflow.samples.camera-tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UIKitSample.app/UIKitSample";
+			};
+			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
@@ -536,6 +645,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		AB81DBA743377BF27F6EF5FA /* Build configuration list for PBXNativeTarget "CameraComponentTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3BAAC57F95BAFA9FF833AB8B /* Debug */,
+				F6E190C8C3DAEF20D94FCB02 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		E7DA94DA375B34B2B18DE7B3 /* Build configuration list for PBXNativeTarget "SwiftUISample" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -555,9 +673,21 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0B4FD8371913C0D0090B3554 /* IdentityFlowCapture */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IdentityFlowCapture;
+		};
 		0EE7DCC080F62A591194C222 /* IdentityFlowDemoSupport */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IdentityFlowDemoSupport;
+		};
+		2338341D8CB4541C1489D4C4 /* IdentityFlowUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IdentityFlowUI;
+		};
+		27F9F348864F2189094706D4 /* IdentityFlowUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IdentityFlowUI;
 		};
 		57C30500CE2C5329D05554D0 /* IdentityFlowDemoSupport */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -586,6 +716,10 @@
 		DB1C031CB0DF7AF2B666341B /* IdentityFlowCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = IdentityFlowCore;
+		};
+		EDE37E0EF9A147EFD1C0C7FD /* IdentityFlowUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = IdentityFlowUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

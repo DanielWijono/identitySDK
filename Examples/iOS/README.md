@@ -12,4 +12,4 @@ The generated Xcode project is committed, so XcodeGen is not required to run. Af
 xcodegen generate --spec Examples/iOS/project.yml
 ```
 
-Choose UIKitSample and press ⌘U for the UI tests. They exercise consent gating, the four outcomes, front/back review, retake, cancellation during review, and background/foreground followed by another run. The apps target iOS 16 and Swift 6. A physical device requires your own signing team; camera functionality is not implemented.
+Choose UIKitSample and press ⌘U for the UI tests. They exercise consent gating, the four outcomes, front/back review, retake, cancellation during review, and background/foreground followed by another run. The apps target iOS 16 and Swift 6. A physical device requires your own signing team; live camera capture is not enabled. The standalone camera component is compiled but disconnected pending device checks; see ../../Docs/Camera-Capture.md. The scheme also runs fake-camera component tests without requesting camera access.

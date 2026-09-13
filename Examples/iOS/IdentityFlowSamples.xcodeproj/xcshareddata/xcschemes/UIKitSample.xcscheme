@@ -49,6 +49,16 @@
                ReferencedContainer = "container:IdentityFlowSamples.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "5261339D66D9A965FAE1373B"
+               BuildableName = "CameraComponentTests.xctest"
+               BlueprintName = "CameraComponentTests"
+               ReferencedContainer = "container:IdentityFlowSamples.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

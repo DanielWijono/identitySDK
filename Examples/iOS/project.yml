@@ -11,6 +11,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: complete
     TARGETED_DEVICE_FAMILY: '1'
     GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_NSCameraUsageDescription: Photograph a test card for the local IdentityFlow capture demo. Images are not uploaded.
     INFOPLIST_KEY_UILaunchScreen_Generation: YES
     INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
     CODE_SIGN_STYLE: Automatic
@@ -26,6 +27,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.identityflow.samples.uikit
         INFOPLIST_KEY_CFBundleDisplayName: IdentityFlow UIKit
     dependencies:
+      - package: IdentityFlow
+        product: IdentityFlowUI
       - package: IdentityFlow
         product: IdentityFlowCore
       - package: IdentityFlow
@@ -44,11 +47,26 @@ targets:
         INFOPLIST_KEY_CFBundleDisplayName: IdentityFlow SwiftUI
     dependencies:
       - package: IdentityFlow
+        product: IdentityFlowUI
+      - package: IdentityFlow
         product: IdentityFlowCore
       - package: IdentityFlow
         product: IdentityFlowDemoSupport
       - package: IdentityFlow
         product: IdentityFlowSecurity
+      - package: IdentityFlow
+        product: IdentityFlowCapture
+  CameraComponentTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [ComponentTests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.identityflow.samples.camera-tests
+    dependencies:
+      - target: UIKitSample
+      - package: IdentityFlow
+        product: IdentityFlowUI
       - package: IdentityFlow
         product: IdentityFlowCapture
   SampleUITests:
@@ -67,7 +85,7 @@ schemes:
       targets:
         UIKitSample: all
     test:
-      targets: [SampleUITests]
+      targets: [SampleUITests, CameraComponentTests]
   SwiftUISample:
     build:
       targets:

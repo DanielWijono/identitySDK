@@ -2,6 +2,8 @@
 import AVFoundation
 import CoreGraphics
 import Foundation
+import os
+import Vision
 
 public enum CameraError: Error, Sendable {
     case permissionRequired, unavailable, configurationFailed, interrupted, captureFailed, stopped, busy
@@ -9,6 +11,7 @@ public enum CameraError: Error, Sendable {
 
 public enum CameraEvent: Sendable {
     case preview(CGImage)
+    case guidance(CameraGuidance)
     case interrupted
     case failed
 }
@@ -57,6 +60,9 @@ public actor StillCamera: CameraDevice {
     // layer observing a session whose configuration/start/stop are serialized elsewhere.
     nonisolated(unsafe) private let session = AVCaptureSession()
     private let photos = AVCapturePhotoOutput()
+    private let analysis = AVCaptureVideoDataOutput()
+    private let analysisQueue = DispatchQueue(label: "com.identityflow.camera.rectangle", qos: .utility)
+    private var rectangleFrames: RectangleFrames?
     private var photoDelegate: PhotoResult?
     private var pending: CheckedContinuation<Data, any Error>?
     private var captureID: UUID?
@@ -89,15 +95,22 @@ public actor StillCamera: CameraDevice {
             session.sessionPreset = .photo
             guard session.canAddInput(input) else { throw CameraError.configurationFailed }
             session.addInput(input)
-            guard session.canAddOutput(photos) else {
+            guard session.canAddOutput(photos), session.canAddOutput(analysis) else {
                 session.removeInput(input)
                 throw CameraError.configurationFailed
             }
             session.addOutput(photos)
+            session.addOutput(analysis)
+            analysis.alwaysDiscardsLateVideoFrames = true
             // Portrait-only host. The preview is guidance, not a crop of the stored still.
-            if photos.connection(with: .video)?.isVideoOrientationSupported == true {
-                photos.connection(with: .video)?.videoOrientation = .portrait
+            for connection in [photos.connection(with: .video), analysis.connection(with: .video)] {
+                if connection?.isVideoOrientationSupported == true { connection?.videoOrientation = .portrait }
             }
+            // With the photo preset, AVFoundation automatically supplies preview-sized buffers
+            // for this output. Do not force dimensions: that conflicts with its preview
+            // optimization and can slow focus/exposure changes on physical devices.
+            analysis.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String:
+                                        kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
             configured = true
         }
         eventSink = events
@@ -109,6 +122,9 @@ public actor StillCamera: CameraDevice {
                 })
             }
         }
+        let rectangleFrames = RectangleFrames { events(.guidance($0)) }
+        self.rectangleFrames = rectangleFrames
+        analysis.setSampleBufferDelegate(rectangleFrames, queue: analysisQueue)
         if !session.isRunning { session.startRunning() }
         guard session.isRunning, !session.isInterrupted else { throw CameraError.interrupted }
     }
@@ -161,6 +177,9 @@ public actor StillCamera: CameraDevice {
         observers.removeAll()
         eventSink = nil
         if let captureID { finish(captureID, result: .failure(.stopped)) }
+        analysis.setSampleBufferDelegate(nil, queue: nil)
+        rectangleFrames?.invalidate()
+        rectangleFrames = nil
         if session.isRunning { session.stopRunning() }
     }
 }
@@ -176,6 +195,59 @@ private final class PhotoResult: NSObject, AVCapturePhotoCaptureDelegate, Sendab
     }
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishCaptureFor resolvedSettings: AVCaptureResolvedPhotoSettings, error: (any Error)?) {
         if error != nil { deliver(.failure(.captureFailed)) }
+    }
+}
+
+/// The delegate queue is serial and Vision work is synchronous, so at most one frame is analyzed.
+/// The native preview layer is independent and never waits for this capped analysis path.
+private final class RectangleFrames: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, Sendable {
+    private static let minimumFrameInterval = 0.25
+    private struct State {
+        var active = true
+        var lastAnalysis = -Double.infinity
+        var tracker = RectangleGuidanceTracker()
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+    private let deliver: @Sendable (CameraGuidance) -> Void
+
+    init(deliver: @escaping @Sendable (CameraGuidance) -> Void) {
+        self.deliver = deliver
+    }
+
+    func invalidate() {
+        state.withLock { $0.active = false }
+    }
+
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,
+                       from connection: AVCaptureConnection) {
+        let now = ProcessInfo.processInfo.systemUptime
+        let shouldAnalyze = state.withLock { state in
+            guard state.active, now - state.lastAnalysis >= Self.minimumFrameInterval else { return false }
+            state.lastAnalysis = now
+            return true
+        }
+        guard shouldAnalyze, let pixels = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+
+        let request = VNDetectRectanglesRequest()
+        request.maximumObservations = 1
+        request.minimumAspectRatio = 0.45
+        request.maximumAspectRatio = 0.9
+        request.minimumSize = 0.25
+        request.minimumConfidence = 0.5
+        request.quadratureTolerance = 25
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixels, orientation: .up)
+        do { try handler.perform([request]) } catch { return }
+
+        let lowerLeftBounds = request.results?.first?.boundingBox
+        let topLeftBounds = lowerLeftBounds.map {
+            CGRect(x: $0.minX, y: 1 - $0.maxY, width: $0.width, height: $0.height)
+        }
+        let guidance = state.withLock { state -> CameraGuidance? in
+            guard state.active else { return nil }
+            return state.tracker.update(topLeftBounds)
+        }
+        if let guidance { deliver(guidance) }
     }
 }
 

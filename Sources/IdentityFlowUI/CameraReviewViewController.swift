@@ -118,6 +118,7 @@ public final class CameraReviewViewController: UIViewController {
         let priorShutdown = shutdown
         jpeg = nil
         image.clearNativePreview()
+        image.guidancePhase = .searching
         cropControls.isHidden = true
         cropButton.isHidden = true
         image.selection = nil
@@ -145,6 +146,8 @@ public final class CameraReviewViewController: UIViewController {
                         let height = min(0.85, width * Double(pixels.width) / Double(pixels.height) / 1.586)
                         self.image.selection = CGRect(x: (1 - width) / 2, y: (1 - height) / 2, width: width, height: height)
                     }
+                case .guidance(let guidance):
+                    self.showGuidance(guidance)
                 case .interrupted: self.showFailure("Camera interrupted. Retry when it is available.")
                 case .failed: self.showFailure("Camera unavailable. Try again.")
                 }
@@ -160,11 +163,9 @@ public final class CameraReviewViewController: UIViewController {
                 guard let self, self.generation == id, !self.finished else { await camera.stop(); return }
                 if let previewLayer {
                     self.image.showNativePreview(previewLayer)
-                    let width = 0.85
-                    let height = width * 0.75 / 1.586
-                    self.image.selection = CGRect(x: (1 - width) / 2, y: (1 - height) / 2,
-                                                  width: width, height: height)
+                    self.showDefaultGuide()
                 }
+                self.image.guidancePhase = .searching
                 self.shutter.isEnabled = true
                 self.instructions.text = "Photograph \(self.sideDescription). Center the test card inside the frame. Keep all corners visible and avoid glare. No identity verification is performed."
             } catch {
@@ -175,6 +176,33 @@ public final class CameraReviewViewController: UIViewController {
                 self.showFailure(message)
             }
         }
+    }
+
+    private func showGuidance(_ guidance: CameraGuidance) {
+        guard !finished, !shutter.isHidden else { return }
+        if let bounds = guidance.bounds { image.selection = bounds } else { showDefaultGuide() }
+        image.guidancePhase = guidance.phase
+        let text: String
+        switch guidance.phase {
+        case .searching:
+            text = "Center the test card inside the frame. Keep all corners visible. You can still take the photo manually."
+        case .moveCloser:
+            text = "Card detected. Move closer while keeping every corner visible."
+        case .keepInside:
+            text = "Card detected near an edge. Move it inward so every corner is visible."
+        case .holdSteady:
+            text = "Card detected. Hold the phone and card steady."
+        case .ready:
+            text = "Card detected and steady. Take the photo when ready."
+        }
+        if instructions.text != text { instructions.text = text }
+    }
+
+    private func showDefaultGuide() {
+        let width = 0.85
+        let height = width * 0.75 / 1.586
+        image.selection = CGRect(x: (1 - width) / 2, y: (1 - height) / 2,
+                                 width: width, height: height)
     }
 
     @objc private func takePhoto() {
@@ -193,6 +221,7 @@ public final class CameraReviewViewController: UIViewController {
                 self.eventsTask?.cancel()
                 self.jpeg = normalized.jpeg
                 self.image.clearNativePreview()
+                self.image.guidancePhase = .searching
                 self.image.image = UIImage(data: normalized.jpeg)
                 self.image.accessibilityLabel = "Review photo of \(self.sideDescription)"
                 self.instructions.text = "Adjust the four crop edges around \(self.sideDescription), then preview the crop. Keep every corner and all text inside."
@@ -325,6 +354,7 @@ public final class CameraReviewViewController: UIViewController {
 @MainActor
 private final class CropPreview: UIImageView {
     var selection: CGRect? { didSet { setNeedsLayout() } }
+    var guidancePhase: CameraGuidance.Phase = .searching { didSet { setNeedsLayout() } }
     private var nativePreview: AVCaptureVideoPreviewLayer?
     var isShowingNativePreview: Bool { nativePreview != nil }
     private let outline = CAShapeLayer()
@@ -354,10 +384,10 @@ private final class CropPreview: UIImageView {
         nativePreview?.frame = bounds
         if outline.superlayer == nil {
             outline.fillColor = UIColor.clear.cgColor
-            outline.strokeColor = UIColor.systemYellow.cgColor
             outline.lineWidth = 3
             layer.addSublayer(outline)
         }
+        outline.strokeColor = (guidancePhase == .ready ? UIColor.systemGreen : UIColor.systemYellow).cgColor
         guard let selection else {
             outline.path = nil
             return

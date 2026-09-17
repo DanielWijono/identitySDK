@@ -26,4 +26,4 @@ Repeat with **Cancel capture**, and with locking/unlocking during front review o
 
 ### Review a manual crop
 
-In Live camera, place the printed test card within the yellow guide and take a photo. Adjust Left, Top, Right and Bottom crop-edge sliders until all card corners remain inside the outline. Scroll if needed. Tap **Preview crop**, inspect the result, then **Use this image** or **Retake**. Repeat for the back. Locking the phone during editing must cancel and clear the session. The guide does not automatically detect or validate a card.
+In Live camera, place the printed test card within the guide. The outline follows a locally detected rectangle when available: yellow and the status text request positioning or stability; green means three stable observations were seen. Detection is advisory and never validates a card or disables the manual shutter. Take a photo, then adjust Left, Top, Right and Bottom crop-edge sliders until all card corners remain inside the outline. Scroll if needed. Tap **Preview crop**, inspect the result, then **Use this image** or **Retake**. Repeat for the back. Locking the phone during editing must cancel and clear the session.

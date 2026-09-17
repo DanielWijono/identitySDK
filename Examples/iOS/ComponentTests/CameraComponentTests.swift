@@ -24,6 +24,7 @@ private actor FakeCamera: CameraDevice {
     func stop() { stops += 1 }
     func completeLate() { pending?.resume(returning: bytes); pending = nil }
     func interrupt() { events?(.interrupted) }
+    func guide(_ guidance: CameraGuidance) { events?(.guidance(guidance)) }
 }
 
 private actor NativePreviewCamera: CameraDevice {
@@ -195,6 +196,19 @@ final class CameraComponentTests: XCTestCase {
         screen.cancelCapture()
         XCTAssertFalse(preview.layer.sublayers?.contains { $0 is AVCaptureVideoPreviewLayer } == true)
     }
+
+    func testRectangleGuidanceUpdatesStatusWithoutBlockingManualShutter() async throws {
+        let camera = FakeCamera(bytes: jpeg())
+        let screen = CameraReviewViewController(sideDescription: "front", makeCamera: { camera })
+        screen.loadViewIfNeeded()
+        try await until { self.button("Take photo", screen).isEnabled }
+        await camera.guide(CameraGuidance(bounds: CGRect(x: 0.1, y: 0.2, width: 0.8, height: 0.5),
+                                           phase: .ready))
+        try await until { self.message(screen).contains("detected and steady") }
+        XCTAssertTrue(button("Take photo", screen).isEnabled)
+        screen.cancelCapture()
+    }
+
     func testLiveAdapterSequencesSidesAndRejectsCallbacksAfterCancel() async throws {
         let host = UIViewController()
         host.loadViewIfNeeded()

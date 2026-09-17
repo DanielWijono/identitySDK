@@ -23,3 +23,7 @@ Choose UIKitSample and a physical iPhone in Xcode. Select your development team 
 Choose **Live camera** under Capture input, select Approve, accept the local demo disclosure, and tap **Start simulation**. Use a printed test card, not a real ID. Photograph the front, review or Retake, then **Use this image**. Repeat for the back. Finish within three minutes. The result should say **Simulated approval. No identity was verified.** Confirmed photos are temporarily encrypted on-device and cleaned up at the end; transfers and results remain local simulations.
 
 Repeat with **Cancel capture**, and with locking/unlocking during front review or back capture. Expect cancellation and then a successful fresh run. **Test live camera** remains a separate single-image discard test. Simulator users should choose **Generated cards**.
+
+### Review a manual crop
+
+In Live camera, place the printed test card within the yellow guide and take a photo. Adjust Left, Top, Right and Bottom crop-edge sliders until all card corners remain inside the outline. Scroll if needed. Tap **Preview crop**, inspect the result, then **Use this image** or **Retake**. Repeat for the back. Locking the phone during editing must cancel and clear the session. The guide does not automatically detect or validate a card.

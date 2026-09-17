@@ -8,6 +8,7 @@ import Security
 @MainActor
 final class StorageDeviceTests: XCTestCase {
     func testProtectionRoundTripRevocationAndCleanup() async throws {
+        try requirePhysicalDevice()
         let service = "com.identityflow.device-test." + UUID().uuidString
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(service)
         let keys = KeychainStore(service: service)
@@ -57,6 +58,7 @@ final class StorageDeviceTests: XCTestCase {
     }
 
     func testFreshVaultSweepsOwnedArtifactsAndPreservesControls() async throws {
+        try requirePhysicalDevice()
         let service = "com.identityflow.device-test." + UUID().uuidString
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(service)
         let control = root.appendingPathExtension("control")
@@ -83,5 +85,11 @@ final class StorageDeviceTests: XCTestCase {
         catch { XCTAssertEqual(error as? VaultError, .keyUnavailable) }
         XCTAssertEqual(try Data(contentsOf: control), controlData)
         XCTAssertEqual(try controlKeys.load(account: "control"), controlData)
+    }
+
+    private func requirePhysicalDevice() throws {
+#if targetEnvironment(simulator)
+        throw XCTSkip("Physical-device-only storage validation")
+#endif
     }
 }

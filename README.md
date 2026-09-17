@@ -6,7 +6,7 @@ Implemented: a Swift 6 actor-owned client, narrow evidence/provider contracts, c
 
 ## Run
 
-Validated toolchain: Xcode 26.3 (17C529), Apple Swift 6.2.4. Package minimums: iOS 16; macOS 13 for core development and the command-line simulation. Simulator validation is recorded in Docs/Validation.md; no physical-iPhone validation yet.
+Validated toolchain: Xcode 26.3 (17C529), Apple Swift 6.2.4. Package minimums: iOS 16; macOS 13 for core development and the command-line simulation. Simulator and limited physical-iPhone validation are recorded in Docs/Validation.md and Docs/Device-Validation.md. Physical storage tests passed on an iPhone 14 running iOS 17.3; remaining camera, crop, lock-state, accessibility and performance gates are explicitly documented.
 
 ```sh
 swift test
@@ -29,6 +29,10 @@ Each run requires a fresh evidence source. Cleanup is idempotent and must revoke
 
 ## Status
 
-M0/M1 are in progress; this is not a v0.1 release. UIKit and SwiftUI simulation hosts are available. Image normalization and encrypted storage are integrated into the iOS simulation hosts; see [normalization](Docs/Image-Normalization.md) and [vault contract and remaining gates](Docs/Evidence-Vault.md). An optional camera engine and single-side review UI now compile, with synthetic component tests; they are not enabled in the sample pending physical-device checks. See [camera preparation](Docs/Camera-Capture.md). Camera workflow integration, HTTP adapter, automatic retry, foreground reconciliation, and physical-device evidence remain pending. See [assessment](Docs/Assessment.md), [state contract](Docs/State-Machine.md), and the [original plan](IdentityFlow-SDK-Plan.md).
+M0/M1 foundations and most of the M2 secure-evidence lifecycle are implemented; work is now in M3 physical camera capture. This is not a v0.1 release. UIKit and SwiftUI simulation hosts are available. Image normalization and encrypted storage are integrated into the iOS sample hosts; see [normalization](Docs/Image-Normalization.md) and [vault contract and remaining gates](Docs/Evidence-Vault.md).
+
+The sample's optional live-camera path now coordinates front/back capture, review, retake, temporary encrypted storage and the local simulated provider. Manual crop-edge controls and a separate cropped-image confirmation are implemented. The full package suite passes 35 tests, including upright-coordinate crop coverage for all eight EXIF orientations and invalid-crop rejection. The physical crop checklist was user-observed as passing, and signed physical storage component tests are recorded. The reported five-FPS preview lag has been replaced in source by a native AVFoundation preview layer; its signed build and simulator coverage pass, but physical smoothness/orientation validation is pending because the test iPhone was offline. Use printed test cards only; no network upload or identity verification occurs. See [camera status](Docs/Camera-Capture.md), [device checklist](Docs/Device-Validation.md) and [validation evidence](Docs/Validation.md).
+
+Still pending for M3: physical validation of the native preview, automatic rectangle detection, broader physical permission/interruption checks, instrumented lock-state denial during crop editing, minimum-iOS hardware, VoiceOver, maximum Dynamic Type and performance measurements. M4 HTTP provider integration, automatic retry and foreground reconciliation have not started. See [assessment](Docs/Assessment.md), [state contract](Docs/State-Machine.md), and the [original plan](IdentityFlow-SDK-Plan.md).
 
 The optional progress continuation should use `AsyncStream.makeStream(bufferingPolicy: .bufferingNewest(1))`. It finishes for accepted runs; callers own continuations for runs rejected during initial validation.

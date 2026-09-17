@@ -1,8 +1,7 @@
 #if os(iOS)
 import AVFoundation
-import CoreImage
+import CoreGraphics
 import Foundation
-import os
 
 public enum CameraError: Error, Sendable {
     case permissionRequired, unavailable, configurationFailed, interrupted, captureFailed, stopped, busy
@@ -16,9 +15,16 @@ public enum CameraEvent: Sendable {
 
 /// Inject a synthetic implementation when testing the UI without camera hardware.
 public protocol CameraDevice: Sendable {
+    /// Creates the device's native preview on the main actor. The default keeps
+    /// synthetic/test cameras compatible with pixel-based preview events.
+    @MainActor func makePreviewLayer() -> AVCaptureVideoPreviewLayer?
     func start(events: @escaping @Sendable (CameraEvent) -> Void) async throws
     func capture() async throws -> Data
     func stop() async
+}
+
+public extension CameraDevice {
+    @MainActor func makePreviewLayer() -> AVCaptureVideoPreviewLayer? { nil }
 }
 
 public enum CameraAuthorization: Sendable {
@@ -43,14 +49,14 @@ public enum CameraAuthorization: Sendable {
     }
 }
 
-/// Owns all mutable AVFoundation objects. Session work runs on this actor, never MainActor.
-/// Preview delivers downscaled pixels rather than sharing a mutable session with the UI.
+/// Owns all mutable AVFoundation configuration. Session work runs on this actor, never MainActor.
+/// The one nonisolated reference exists solely so UIKit can create AVFoundation's native preview;
+/// callers cannot use it to mutate the capture session.
 public actor StillCamera: CameraDevice {
-    private let session = AVCaptureSession()
+    // AVCaptureSession lacks Sendable metadata, but AVFoundation explicitly supports a preview
+    // layer observing a session whose configuration/start/stop are serialized elsewhere.
+    nonisolated(unsafe) private let session = AVCaptureSession()
     private let photos = AVCapturePhotoOutput()
-    private let video = AVCaptureVideoDataOutput()
-    private let previewQueue = DispatchQueue(label: "com.identityflow.camera.preview")
-    private var frames: PreviewFrames?
     private var photoDelegate: PhotoResult?
     private var pending: CheckedContinuation<Data, any Error>?
     private var captureID: UUID?
@@ -61,6 +67,10 @@ public actor StillCamera: CameraDevice {
     private var closed = false
 
     public init() {}
+
+    @MainActor public func makePreviewLayer() -> AVCaptureVideoPreviewLayer? {
+        AVCaptureVideoPreviewLayer(session: session)
+    }
 
     public func start(events: @escaping @Sendable (CameraEvent) -> Void) throws {
         guard !closed else { throw CameraError.stopped }
@@ -79,17 +89,14 @@ public actor StillCamera: CameraDevice {
             session.sessionPreset = .photo
             guard session.canAddInput(input) else { throw CameraError.configurationFailed }
             session.addInput(input)
-            guard session.canAddOutput(photos), session.canAddOutput(video) else {
+            guard session.canAddOutput(photos) else {
                 session.removeInput(input)
                 throw CameraError.configurationFailed
             }
             session.addOutput(photos)
-            session.addOutput(video)
-            video.alwaysDiscardsLateVideoFrames = true
-            video.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
             // Portrait-only host. The preview is guidance, not a crop of the stored still.
-            for connection in [video.connection(with: .video), photos.connection(with: .video)] {
-                if connection?.isVideoOrientationSupported == true { connection?.videoOrientation = .portrait }
+            if photos.connection(with: .video)?.isVideoOrientationSupported == true {
+                photos.connection(with: .video)?.videoOrientation = .portrait
             }
             configured = true
         }
@@ -102,8 +109,6 @@ public actor StillCamera: CameraDevice {
                 })
             }
         }
-        frames = PreviewFrames { events(.preview($0)) }
-        video.setSampleBufferDelegate(frames, queue: previewQueue)
         if !session.isRunning { session.startRunning() }
         guard session.isRunning, !session.isInterrupted else { throw CameraError.interrupted }
     }
@@ -156,9 +161,6 @@ public actor StillCamera: CameraDevice {
         observers.removeAll()
         eventSink = nil
         if let captureID { finish(captureID, result: .failure(.stopped)) }
-        video.setSampleBufferDelegate(nil, queue: nil)
-        frames?.invalidate()
-        frames = nil
         if session.isRunning { session.stopRunning() }
     }
 }
@@ -177,30 +179,4 @@ private final class PhotoResult: NSObject, AVCapturePhotoCaptureDelegate, Sendab
     }
 }
 
-/// Delegate callbacks are serial on previewQueue. Only immutable state crosses to the UI.
-private final class PreviewFrames: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, Sendable {
-    let deliver: @Sendable (CGImage) -> Void
-    struct State { var last = -Double.infinity; var active = true }
-    let state = OSAllocatedUnfairLock(initialState: State())
-    func invalidate() { state.withLock { $0.active = false } }
-    let context = CIContext(options: [.cacheIntermediates: false])
-    init(deliver: @escaping @Sendable (CGImage) -> Void) { self.deliver = deliver }
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        let now = ProcessInfo.processInfo.systemUptime
-        let shouldDeliver = state.withLock { state in
-            guard state.active, now - state.last >= 0.2 else { return false }
-            state.last = now
-            return true
-        }
-        guard shouldDeliver, let buffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        autoreleasepool {
-            let source = CIImage(cvPixelBuffer: buffer)
-            let scale = min(1, 640 / max(source.extent.width, source.extent.height))
-            let reduced = source.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-            if let image = context.createCGImage(reduced, from: reduced.extent) {
-                state.withLock { if $0.active { deliver(image) } }
-            }
-        }
-    }
-}
 #endif

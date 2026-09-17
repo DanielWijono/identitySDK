@@ -15,7 +15,7 @@ public struct NormalizedImage: Sendable {
 }
 
 /// Serializes still-image normalization away from MainActor. Use shared for one operation at a time.
-/// Does not crop, judge readability, or validate document authenticity.
+/// Supports explicit rectangular crops; does not judge readability or document authenticity.
 public actor ImageNormalizer {
     public static let shared = ImageNormalizer()
     private let limits: Limits
@@ -31,7 +31,9 @@ public actor ImageNormalizer {
 
     /// Fixed JPEG quality of 0.85: exceeding the byte ceiling requests recapture, never a hidden
     /// sequence of quality reductions. Accepts one JPEG, PNG or HEIC image in memory.
-    public func normalize(_ encoded: Data) throws -> NormalizedImage {
+    /// Optional crop uses unit coordinates from the upright image’s top-left corner, after
+    /// orientation normalization and downsampling. Pixel bounds round outward; no upscaling.
+    public func normalize(_ encoded: Data, crop: CGRect? = nil) throws -> NormalizedImage {
         try Task.checkCancellation()
         return try autoreleasepool {
             guard !encoded.isEmpty else { throw ImageNormalizationError.invalidImage }
@@ -70,18 +72,31 @@ public actor ImageNormalizer {
                 throw ImageNormalizationError.invalidImage
             }
             try Task.checkCancellation()
+            let selected: CGImage
+            if let crop {
+                guard crop.origin.x.isFinite, crop.origin.y.isFinite,
+                      crop.width.isFinite, crop.height.isFinite,
+                      crop.minX >= 0, crop.minY >= 0, crop.maxX <= 1, crop.maxY <= 1,
+                      crop.width > 0, crop.height > 0 else { throw ImageNormalizationError.invalidImage }
+                let region = CGRect(x: crop.minX * Double(thumbnail.width),
+                                    y: crop.minY * Double(thumbnail.height),
+                                    width: crop.width * Double(thumbnail.width),
+                                    height: crop.height * Double(thumbnail.height)).integral
+                guard let cropped = thumbnail.cropping(to: region) else { throw ImageNormalizationError.invalidImage }
+                selected = cropped
+            } else { selected = thumbnail }
             // Render only pixels into a fresh standard color space. No input EXIF/GPS/XMP,
             // embedded thumbnail, custom color profile, or auxiliary image is copied.
             guard let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
-                  let context = CGContext(data: nil, width: thumbnail.width, height: thumbnail.height,
-                                          bitsPerComponent: 8, bytesPerRow: thumbnail.width * 4,
+                  let context = CGContext(data: nil, width: selected.width, height: selected.height,
+                                          bitsPerComponent: 8, bytesPerRow: selected.width * 4,
                                           space: colorSpace, bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else {
                 throw ImageNormalizationError.encodingFailed
             }
-            let rect = CGRect(x: 0, y: 0, width: thumbnail.width, height: thumbnail.height)
+            let rect = CGRect(x: 0, y: 0, width: selected.width, height: selected.height)
             context.setFillColor(CGColor(gray: 1, alpha: 1))
             context.fill(rect) // Flatten transparent inputs onto white.
-            context.draw(thumbnail, in: rect)
+            context.draw(selected, in: rect)
             guard let pixels = context.makeImage() else { throw ImageNormalizationError.encodingFailed }
             let output = NSMutableData()
             guard let destination = CGImageDestinationCreateWithData(output, UTType.jpeg.identifier as CFString, 1, nil) else {

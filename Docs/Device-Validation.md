@@ -30,3 +30,21 @@ The user reported “Simulation cancelled. Synthetic evidence was cleared” aft
 ## Integrated live capture (September 13, afternoon)
 
 The optional front/back camera path is now installed on DEV TESTING 7. Launch was blocked because the phone was locked. Integrated capture/retake, cancellation, lock during either side, and fresh-run results have not yet been reported. Earlier standalone-camera and synthetic-flow observations do not establish these integrated results.
+
+### User follow-up and crop milestone — 2026-09-13
+
+The user reported “completed” after the integrated front/back capture and interruption checklist. No additional instrumented lock-state result was collected. Manual crop editing and cropped-image confirmation were subsequently added; physical validation of those new screens remains pending.
+
+At 22:00 WIB, a current signed crop-enabled UIKitSample build was installed successfully on DEV TESTING 7. The subsequent remote launch was denied because the phone was locked. Unlock and open the installed app before performing the crop checklist; the failed launch does not validate camera, crop or locked-storage behavior.
+
+### Physical crop follow-up — 2026-09-16
+
+The current UIKitSample launched successfully on DEV TESTING 7. After completing the printed-card checklist, the user reported that front/back crop editing, crop preview, retake, locking during crop editing and the fresh-run result behaved as expected. This is user-observed UI validation; it is not an automated readability assessment or an instrumented locked-storage result.
+
+The user also reported a lagging live preview. Source inspection found an explicit 0.2-second preview throttle, limiting displayed frames to 5 FPS, followed by per-frame Core Image to `CGImage` conversion and a MainActor `UIImage` update. A 15-second Time Profiler trace on the iPhone 14 reported no app hang over 250 ms. The visible lag is therefore consistent with the deliberately low preview cadence and frame-copy display path, rather than a detected main-thread hang. Trace: `/tmp/identityflow-preview-lag-2.trace`. No implementation change was made during this investigation.
+
+### Native-preview follow-up — 2026-09-17
+
+The real camera preview was changed to `AVCaptureVideoPreviewLayer`. The capture session remains actor-configured, while preview-layer creation and display are MainActor-isolated. The old `AVCaptureVideoDataOutput` frame-copy path was removed from `StillCamera`; it is not needed until bounded analysis is implemented. Camera component coverage now verifies that a native preview layer is attached after startup and synchronously removed on cancellation.
+
+All 9 focused camera/adapter component tests passed on iPhone 16 Pro Simulator, iOS 18.3.1, and the signed generic-device UIKitSample build succeeded. DEV TESTING 7 was unavailable when checked, so this build was not installed and no claim is made yet about physical smoothness, preview orientation, still/guide alignment, retake or interruption behavior. App artifact: `/tmp/identityflow-native-preview-device/Build/Products/Debug-iphoneos/UIKitSample.app`.

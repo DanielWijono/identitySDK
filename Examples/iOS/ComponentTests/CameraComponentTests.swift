@@ -1,4 +1,5 @@
 import XCTest
+import AVFoundation
 import UIKit
 import IdentityFlowCapture
 import IdentityFlowUI
@@ -23,6 +24,16 @@ private actor FakeCamera: CameraDevice {
     func stop() { stops += 1 }
     func completeLate() { pending?.resume(returning: bytes); pending = nil }
     func interrupt() { events?(.interrupted) }
+}
+
+private actor NativePreviewCamera: CameraDevice {
+    var stops = 0
+    @MainActor func makePreviewLayer() -> AVCaptureVideoPreviewLayer? {
+        AVCaptureVideoPreviewLayer(session: AVCaptureSession())
+    }
+    func start(events: @escaping @Sendable (CameraEvent) -> Void) {}
+    func capture() async throws -> Data { throw CameraError.captureFailed }
+    func stop() { stops += 1 }
 }
 
 @MainActor
@@ -56,12 +67,23 @@ final class CameraComponentTests: XCTestCase {
         screen.loadViewIfNeeded()
         try await until { self.button("Take photo", screen).isEnabled }
         button("Take photo", screen).sendActions(for: .touchUpInside)
+        try await until { !self.button("Preview crop", screen).isHidden }
+        XCTAssertTrue(button("Use this image", screen).isHidden)
+        button("Use this image", screen).sendActions(for: .touchUpInside)
+        XCTAssertTrue(results.isEmpty)
+        let sliders = descendants(screen.view).compactMap { $0 as? UISlider }
+        sliders[0].value = 0.25
+        sliders[0].sendActions(for: .valueChanged)
+        button("Preview crop", screen).sendActions(for: .touchUpInside)
         try await until { !self.button("Use this image", screen).isHidden }
         XCTAssertTrue(results.isEmpty)
         button("Use this image", screen).sendActions(for: .touchUpInside)
         button("Use this image", screen).sendActions(for: .touchUpInside)
         XCTAssertEqual(results.count, 1)
-        XCTAssertNotNil(UIImage(data: results[0]))
+        let output = try XCTUnwrap(UIImage(data: results[0])?.cgImage)
+        let original = try XCTUnwrap(UIImage(data: jpeg())?.cgImage)
+        XCTAssertEqual(output.width, Int(ceil(Double(original.width) * 0.75)))
+        XCTAssertEqual(output.height, original.height)
         XCTAssertTrue(descendants(screen.view).compactMap { $0 as? UIImageView }.allSatisfy { $0.image == nil })
     }
 
@@ -73,6 +95,8 @@ final class CameraComponentTests: XCTestCase {
         screen.loadViewIfNeeded()
         try await until { self.button("Take photo", screen).isEnabled }
         button("Take photo", screen).sendActions(for: .touchUpInside)
+        try await until { !self.button("Preview crop", screen).isHidden }
+        button("Preview crop", screen).sendActions(for: .touchUpInside)
         try await until { !self.button("Use this image", screen).isHidden }
         button("Retake", screen).sendActions(for: .touchUpInside)
         try await until { await camera.starts == 2 && self.button("Take photo", screen).isEnabled }
@@ -126,6 +150,8 @@ final class CameraComponentTests: XCTestCase {
         screen.loadViewIfNeeded()
         try await until { self.button("Take photo", screen).isEnabled }
         button("Take photo", screen).sendActions(for: .touchUpInside)
+        try await until { !self.button("Preview crop", screen).isHidden }
+        button("Preview crop", screen).sendActions(for: .touchUpInside)
         try await until { !self.button("Use this image", screen).isHidden }
         NotificationCenter.default.post(name: UIApplication.willResignActiveNotification, object: nil)
         XCTAssertTrue(cancelled)
@@ -157,6 +183,17 @@ final class CameraComponentTests: XCTestCase {
         let authorization = await CameraAuthorization.request()
         XCTAssertEqual(authorization, .unavailable)
         #endif
+    }
+
+    func testNativePreviewLayerIsAttachedAndRemovedOnCancel() async throws {
+        let camera = NativePreviewCamera()
+        let screen = CameraReviewViewController(sideDescription: "front", makeCamera: { camera })
+        screen.loadViewIfNeeded()
+        try await until { self.button("Take photo", screen).isEnabled }
+        let preview = try XCTUnwrap(descendants(screen.view).compactMap { $0 as? UIImageView }.first)
+        XCTAssertTrue(preview.layer.sublayers?.contains { $0 is AVCaptureVideoPreviewLayer } == true)
+        screen.cancelCapture()
+        XCTAssertFalse(preview.layer.sublayers?.contains { $0 is AVCaptureVideoPreviewLayer } == true)
     }
     func testLiveAdapterSequencesSidesAndRejectsCallbacksAfterCancel() async throws {
         let host = UIViewController()

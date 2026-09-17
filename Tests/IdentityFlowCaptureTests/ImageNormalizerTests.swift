@@ -138,3 +138,26 @@ func convertsSupportedFormatsAndChecksCancellation(format: UTType) async throws 
     }
     await #expect(throws: CancellationError.self) { try await task.value }
 }
+
+@Test(arguments: 1...8)
+func cropUsesUprightTopLeftCoordinates(orientation: Int) async throws {
+    let input = try fixture(orientation: orientation, metadata: true)
+    let result = try await ImageNormalizer().normalize(input, crop: CGRect(x: 0, y: 0, width: 0.5, height: 0.5))
+    #expect(result.width == (orientation >= 5 ? 50 : 80))
+    #expect(result.height == (orientation >= 5 ? 80 : 50))
+    let expected = [0, 1, 3, 2, 0, 2, 3, 1][orientation - 1]
+    #expect(try quadrants(result.jpeg) == Array(repeating: expected, count: 4))
+    #expect(try properties(result.jpeg)[kCGImagePropertyGPSDictionary] == nil)
+}
+
+@Test func rejectsInvalidCropBounds() async throws {
+    let input = try fixture()
+    for rect in [CGRect(x: -0.1, y: 0, width: 0.5, height: 0.5),
+                 CGRect(x: 0.8, y: 0, width: 0.5, height: 0.5),
+                 CGRect(x: 0, y: 0, width: 0, height: 1),
+                 CGRect(x: 0, y: 0, width: CGFloat.nan, height: 1)] {
+        await #expect(throws: ImageNormalizationError.invalidImage) {
+            try await ImageNormalizer().normalize(input, crop: rect)
+        }
+    }
+}

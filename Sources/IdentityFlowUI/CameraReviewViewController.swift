@@ -1,4 +1,5 @@
 #if os(iOS)
+import AVFoundation
 import UIKit
 import IdentityFlowCapture
 
@@ -9,7 +10,10 @@ public final class CameraReviewViewController: UIViewController {
     public var onConfirm: ((Data) -> Void)?
     public var onCancel: (() -> Void)?
     private let makeCamera: @Sendable () -> any CameraDevice
-    private let image = UIImageView()
+    private let image = CropPreview()
+    private let cropButton = UIButton(type: .system)
+    private let cropControls = UIStackView()
+    private var edges: [UISlider] = []
     private let instructions = UILabel()
     private let shutter = UIButton(type: .system)
     private let confirm = UIButton(type: .system)
@@ -54,10 +58,25 @@ public final class CameraReviewViewController: UIViewController {
         image.accessibilityLabel = "Camera preview for \(sideDescription)"
         image.heightAnchor.constraint(equalToConstant: 280).isActive = true
         configure(shutter, "Take photo", #selector(takePhoto))
+        configure(cropButton, "Preview crop", #selector(applyCrop))
+        cropControls.axis = .vertical
+        for name in ["Left", "Top", "Right", "Bottom"] {
+            let label = UILabel()
+            label.text = "\(name) crop edge"
+            label.font = .preferredFont(forTextStyle: .caption1)
+            let slider = UISlider()
+            slider.minimumValue = 0
+            slider.maximumValue = 0.45
+            slider.accessibilityLabel = "\(name) crop edge"
+            slider.addTarget(self, action: #selector(updateCrop), for: .valueChanged)
+            edges.append(slider)
+            cropControls.addArrangedSubview(label)
+            cropControls.addArrangedSubview(slider)
+        }
         configure(confirm, "Use this image", #selector(useImage))
         configure(retry, "Retake", #selector(restart))
         configure(cancelButton, "Cancel capture", #selector(cancelCapture))
-        let stack = UIStackView(arrangedSubviews: [instructions, image, shutter, confirm, retry, cancelButton])
+        let stack = UIStackView(arrangedSubviews: [instructions, image, shutter, cropControls, cropButton, confirm, retry, cancelButton])
         stack.axis = .vertical
         stack.spacing = 16
         let scroll = UIScrollView()
@@ -98,6 +117,10 @@ public final class CameraReviewViewController: UIViewController {
         let previous = releaseCamera()
         let priorShutdown = shutdown
         jpeg = nil
+        image.clearNativePreview()
+        cropControls.isHidden = true
+        cropButton.isHidden = true
+        image.selection = nil
         image.image = nil
         confirm.isHidden = true
         retry.isHidden = true
@@ -107,13 +130,21 @@ public final class CameraReviewViewController: UIViewController {
         let id = generation
         let camera = makeCamera()
         self.camera = camera
+        let previewLayer = camera.makePreviewLayer()
         let (stream, continuation) = AsyncStream<CameraEvent>.makeStream(bufferingPolicy: .bufferingNewest(1))
         sink = continuation
         eventsTask = Task { [weak self] in
             for await event in stream {
                 guard !Task.isCancelled, let self, self.generation == id, !self.finished else { return }
                 switch event {
-                case .preview(let pixels): self.image.image = UIImage(cgImage: pixels)
+                case .preview(let pixels):
+                    guard !self.image.isShowingNativePreview else { continue }
+                    self.image.image = UIImage(cgImage: pixels)
+                    if self.image.selection == nil {
+                        let width = 0.85
+                        let height = min(0.85, width * Double(pixels.width) / Double(pixels.height) / 1.586)
+                        self.image.selection = CGRect(x: (1 - width) / 2, y: (1 - height) / 2, width: width, height: height)
+                    }
                 case .interrupted: self.showFailure("Camera interrupted. Retry when it is available.")
                 case .failed: self.showFailure("Camera unavailable. Try again.")
                 }
@@ -127,8 +158,15 @@ public final class CameraReviewViewController: UIViewController {
                 try Task.checkCancellation()
                 try await camera.start { continuation.yield($0) }
                 guard let self, self.generation == id, !self.finished else { await camera.stop(); return }
+                if let previewLayer {
+                    self.image.showNativePreview(previewLayer)
+                    let width = 0.85
+                    let height = width * 0.75 / 1.586
+                    self.image.selection = CGRect(x: (1 - width) / 2, y: (1 - height) / 2,
+                                                  width: width, height: height)
+                }
                 self.shutter.isEnabled = true
-                self.instructions.text = "Photograph \(self.sideDescription). Keep the entire test card visible. No identity verification is performed."
+                self.instructions.text = "Photograph \(self.sideDescription). Center the test card inside the frame. Keep all corners visible and avoid glare. No identity verification is performed."
             } catch {
                 guard let self, self.generation == id, !self.finished else { await camera.stop(); return }
                 let message = (error as? CameraError) == .permissionRequired
@@ -154,11 +192,16 @@ public final class CameraReviewViewController: UIViewController {
                 self.sink?.finish()
                 self.eventsTask?.cancel()
                 self.jpeg = normalized.jpeg
+                self.image.clearNativePreview()
                 self.image.image = UIImage(data: normalized.jpeg)
                 self.image.accessibilityLabel = "Review photo of \(self.sideDescription)"
-                self.instructions.text = "Review \(self.sideDescription). Check that it is clear and fully visible."
+                self.instructions.text = "Adjust the four crop edges around \(self.sideDescription), then preview the crop. Keep every corner and all text inside."
+                self.edges.forEach { $0.value = 0 }
+                self.cropControls.isHidden = false
+                self.cropButton.isHidden = false
+                self.updateCrop()
                 self.shutter.isHidden = true
-                self.confirm.isHidden = false
+                self.confirm.isHidden = true
                 self.retry.setTitle("Retake", for: .normal)
                 self.retry.isHidden = false
                 UIAccessibility.post(notification: .screenChanged, argument: self.instructions)
@@ -169,10 +212,47 @@ public final class CameraReviewViewController: UIViewController {
         }
     }
 
+    @objc private func updateCrop() {
+        guard edges.count == 4 else { return }
+        let values = edges.map { CGFloat($0.value) }
+        image.selection = CGRect(x: values[0], y: values[1],
+                                 width: 1 - values[0] - values[2], height: 1 - values[1] - values[3])
+        for edge in edges { edge.accessibilityValue = "\(Int(edge.value * 100)) percent inset" }
+    }
+
+    @objc private func applyCrop() {
+        guard !finished, let jpeg, let crop = image.selection, !cropButton.isHidden else { return }
+        cropControls.isHidden = true
+        cropButton.isHidden = true
+        retry.isHidden = true
+        let id = generation
+        instructions.text = "Preparing crop…"
+        work = Task { [weak self] in
+            do {
+                let result = try await ImageNormalizer.shared.normalize(jpeg, crop: crop)
+                guard let self, self.generation == id, !self.finished else { return }
+                self.jpeg = result.jpeg
+                self.image.selection = nil
+                self.image.image = UIImage(data: result.jpeg)
+                self.instructions.text = "Review the cropped image. Confirm only if the entire card is clear and readable; otherwise retake."
+                self.confirm.isHidden = false
+                self.retry.isHidden = false
+                UIAccessibility.post(notification: .screenChanged, argument: self.instructions)
+            } catch {
+                guard let self, self.generation == id, !self.finished else { return }
+                self.showFailure("The crop could not be prepared. Retake the photo.")
+            }
+        }
+    }
+
     private func showFailure(_ text: String) {
         let camera = releaseCamera()
         enqueueStop(camera)
         jpeg = nil
+        image.clearNativePreview()
+        cropControls.isHidden = true
+        cropButton.isHidden = true
+        image.selection = nil
         image.image = nil
         instructions.text = text
         shutter.isHidden = true
@@ -183,9 +263,13 @@ public final class CameraReviewViewController: UIViewController {
     }
 
     @objc private func useImage() {
-        guard !finished, let jpeg else { return }
+        guard !finished, !confirm.isHidden, let jpeg else { return }
         finished = true
         self.jpeg = nil
+        image.clearNativePreview()
+        cropControls.isHidden = true
+        cropButton.isHidden = true
+        image.selection = nil
         image.image = nil
         let camera = releaseCamera()
         enqueueStop(camera)
@@ -199,6 +283,10 @@ public final class CameraReviewViewController: UIViewController {
         guard !finished else { return }
         finished = true
         jpeg = nil
+        image.clearNativePreview()
+        cropControls.isHidden = true
+        cropButton.isHidden = true
+        image.selection = nil
         image.image = nil // Conceal synchronously before awaiting camera shutdown.
         instructions.text = "Capture cancelled."
         shutter.isEnabled = false
@@ -231,6 +319,63 @@ public final class CameraReviewViewController: UIViewController {
         let previous = camera
         camera = nil
         return previous
+    }
+}
+/// Draws in the aspect-fit image rectangle, excluding letterboxing.
+@MainActor
+private final class CropPreview: UIImageView {
+    var selection: CGRect? { didSet { setNeedsLayout() } }
+    private var nativePreview: AVCaptureVideoPreviewLayer?
+    var isShowingNativePreview: Bool { nativePreview != nil }
+    private let outline = CAShapeLayer()
+    override var image: UIImage? { didSet { setNeedsLayout() } }
+
+    func showNativePreview(_ preview: AVCaptureVideoPreviewLayer) {
+        clearNativePreview()
+        image = nil
+        preview.videoGravity = .resizeAspect
+        if preview.connection?.isVideoOrientationSupported == true {
+            preview.connection?.videoOrientation = .portrait
+        }
+        layer.insertSublayer(preview, at: 0)
+        nativePreview = preview
+        setNeedsLayout()
+    }
+
+    func clearNativePreview() {
+        nativePreview?.session = nil
+        nativePreview?.removeFromSuperlayer()
+        nativePreview = nil
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        nativePreview?.frame = bounds
+        if outline.superlayer == nil {
+            outline.fillColor = UIColor.clear.cgColor
+            outline.strokeColor = UIColor.systemYellow.cgColor
+            outline.lineWidth = 3
+            layer.addSublayer(outline)
+        }
+        guard let selection else {
+            outline.path = nil
+            return
+        }
+        if let nativePreview {
+            outline.path = UIBezierPath(rect: nativePreview.layerRectConverted(fromMetadataOutputRect: selection)).cgPath
+            return
+        }
+        guard let image, image.size.width > 0, image.size.height > 0 else {
+            outline.path = nil
+            return
+        }
+        let scale = min(bounds.width / image.size.width, bounds.height / image.size.height)
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let rect = CGRect(x: (bounds.width - size.width) / 2 + selection.minX * size.width,
+                          y: (bounds.height - size.height) / 2 + selection.minY * size.height,
+                          width: selection.width * size.width, height: selection.height * size.height)
+        outline.path = UIBezierPath(rect: rect).cgPath
     }
 }
 #endif

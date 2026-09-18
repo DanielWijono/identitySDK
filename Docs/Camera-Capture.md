@@ -12,7 +12,7 @@ This is a development test-card path. Two physical storage tests and user-report
 - Starting an already-running camera now fails with `CameraError.busy` without replacing callbacks or starting another session. A device-only test performs 30 fresh start/stop cycles, checks duplicate-start rejection, and evaluates the provisional 1.5-second p95 readiness target. It is ready but has not yet run because the test iPhone disconnected.
 - One still request may be pending per camera. A 15-second timeout bounds missing completion; cancellation, stop and late callbacks use a request UUID to avoid delivering twice. Stop is terminal for that instance; retry creates a new instance.
 - Interruptions/runtime failures stop capture and offer retry. The screen normalizes the still before review. Retake drops the unconfirmed JPEG and restarts the camera. Confirm transfers only the normalized JPEG to the host callback, once; the host then owns those bytes.
-- Inactivity, protected-data loss, cancellation and disappearance clear the preview synchronously and request camera shutdown. Asynchronous camera shutdown is not claimed to be instantaneous. This screen is a single-side capture component; it does not yet implement the SDK's full consent/front/back orchestration facade.
+- Inactivity, protected-data loss, cancellation and disappearance clear the preview synchronously and request camera shutdown. Asynchronous camera shutdown is not claimed to be instantaneous. This screen remains a single-side component; `DocumentCaptureCoordinator` drives both sides through it.
 
 ## Permission and integration prerequisites
 
@@ -22,9 +22,19 @@ The sample embeds each review screen below its privacy cover. Cancellation reach
 
 SwiftUI hosts can present `CameraReviewView(sideDescription:onConfirm:onCancel:)`. It is a thin `UIViewControllerRepresentable` over `CameraReviewViewController`, so capture, review, cancellation and teardown behavior remain shared rather than reimplemented. Hosts must still complete camera-permission preflight before presentation and own confirmed bytes after the callback.
 
+## Front/back orchestration
+
+`DocumentCaptureCoordinator` (IdentityFlowUI) drives one confirmed capture per side for a single accepted run and conforms to `ConfirmedImageCapture`, so it is passed straight to `VaultEvidenceSource` as its capture. It presents one `CameraReviewViewController` per side, rotates a generation UUID on every teardown so callbacks from a removed screen cannot resolve a later side, and bridges the callback screen into the `async` evidence boundary through a single checked continuation. A second concurrent side is refused rather than queued.
+
+The screen's own cancel invokes the host's `onUserCancel` only; it never resumes the continuation. The host cancels `VerificationClient`, and that cleanup resolves the outstanding capture, so the client's terminal reservation always wins. `hidePreview()` is synchronous for the inactivity and protected-data paths; `cancel()` additionally fails the awaited side and is idempotent. After cancellation the coordinator refuses further capture instead of presenting a screen for a terminated flow.
+
+Presentation is injected through `DocumentCapturePresenter`. `ChildCapturePresenter(host:below:hiding:)` embeds each side as a child view controller directly below the host's privacy cover and hides the designated background content, which prevents duplicate accessible controls behind the modal screen. It holds weak references and refuses to present once the host or cover is gone, so the coordinator fails the capture rather than awaiting a screen that never appears.
+
+The coordinator does not own camera permission, consent, the vault or the privacy cover itself. Permission preflight remains the host's responsibility, exactly as described above.
+
 Guidance remains available without color: the preview's accessibility value describes searching, distance, edge position, stability and manual readiness. Crop sliders expose named edges and percentage-inset values, while the preview describes the combined crop. Guidance and crop labels use Dynamic Type and wrap; the vertical scroll layout is exercised at the largest accessibility category. Hands-on VoiceOver order, rotor behavior and announcements remain a physical/manual gate.
 
-Still pending: the automated 30-cycle physical lifecycle/timing test, physical permission-revocation validation, still/preview orientation comparison, interrupted-session stress tests, file/key lock-state validation, full front/back orchestration facade, minimum-iOS hardware, hands-on VoiceOver and broader performance measurements. Simulator fake-camera tests do not establish any of these hardware properties.
+Still pending: the automated 30-cycle physical lifecycle/timing test, physical permission-revocation validation, still/preview orientation comparison, interrupted-session stress tests, file/key lock-state validation, minimum-iOS hardware, hands-on VoiceOver and broader performance measurements. Simulator fake-camera tests do not establish any of these hardware properties.
 
 References: [Apple capture-session setup](https://developer.apple.com/documentation/avfoundation/setting-up-a-capture-session) and [requesting camera authorization](https://developer.apple.com/documentation/avfoundation/requesting-authorization-to-capture-and-save-media).
 

@@ -2,13 +2,6 @@ import Foundation
 import IdentityFlowCore
 import os
 
-/// Capture must return only a user-confirmed, normalized JPEG. Do not persist plaintext.
-public protocol ConfirmedImageCapture: Sendable {
-    func confirmedJPEG(for side: DocumentSide) async throws -> Data
-    /// Stop owned capture work. The vault adapter independently rejects late results.
-    func cancel() async
-}
-
 /// One instance per accepted flow. Allocates storage lazily, so rejected starts own no files/keys.
 public actor VaultEvidenceSource: EvidenceSource {
     private let vault: EvidenceVault

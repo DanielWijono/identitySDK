@@ -329,46 +329,112 @@ final class CameraComponentTests: XCTestCase {
         window.isHidden = true
     }
 
-    func testLiveAdapterSequencesSidesAndRejectsCallbacksAfterCancel() async throws {
+    /// Host, cover and background wired the way ChildCapturePresenter expects.
+    private func captureHost() -> (UIViewController, UIView, UIView) {
         let host = UIViewController()
         host.loadViewIfNeeded()
         let cover = UIView(), background = UIView()
         host.view.addSubview(background)
         host.view.addSubview(cover)
+        return (host, cover, background)
+    }
+
+    func testCoordinatorSequencesSidesAndRejectsCallbacksAfterCancel() async throws {
+        let (host, cover, background) = captureHost()
         let camera = FakeCamera(bytes: jpeg())
-        var screens: [CameraReviewViewController] = []
         var cancellationRequests = 0
-        let capture = LiveCardCapture(host: host, privacyCover: cover, background: background,
-            makeScreen: { description in
-                let screen = CameraReviewViewController(sideDescription: description, makeCamera: { camera })
-                screens.append(screen)
-                return screen
-            }, onCancel: { cancellationRequests += 1 })
+        let capture = DocumentCaptureCoordinator(
+            presenter: ChildCapturePresenter(host: host, below: cover, hiding: background),
+            makeCamera: { camera },
+            onUserCancel: { cancellationRequests += 1 })
+
         let front = Task { try await capture.confirmedJPEG(for: .front) }
-        try await until { screens.count == 1 }
+        try await until { self.cameraController(in: host) != nil }
+        let frontScreen = try XCTUnwrap(cameraController(in: host))
         XCTAssertTrue(background.isHidden)
-        XCTAssertTrue(host.children.first === screens[0])
-        XCTAssertTrue(host.view.subviews.last === cover)
+        XCTAssertTrue(host.children.first === frontScreen)
+        XCTAssertTrue(host.view.subviews.last === cover, "Capture screen must stay below the privacy cover")
+
         let bytes = jpeg()
-        screens[0].onConfirm?(bytes)
+        frontScreen.onConfirm?(bytes)
         let result = try await front.value
         XCTAssertEqual(result, bytes)
         XCTAssertTrue(host.children.isEmpty)
         XCTAssertFalse(background.isHidden)
+
         let back = Task { try await capture.confirmedJPEG(for: .back) }
-        try await until { screens.count == 2 }
-        let lateConfirm = screens[1].onConfirm
-        screens[1].onCancel?()
+        try await until { self.cameraController(in: host) != nil }
+        let backScreen = try XCTUnwrap(cameraController(in: host))
+        XCTAssertFalse(backScreen === frontScreen, "Each side gets its own screen")
+        let lateConfirm = backScreen.onConfirm
+
+        // The screen's own cancel asks the client to cancel; it must not resolve the capture here.
+        backScreen.onCancel?()
         XCTAssertEqual(cancellationRequests, 1)
+        XCTAssertFalse(back.isCancelled)
+
         capture.hidePreview()
+        XCTAssertTrue(host.children.isEmpty, "hidePreview must remove the screen synchronously")
         lateConfirm?(bytes)
         capture.cancel()
         capture.cancel()
         do { _ = try await back.value; XCTFail("Cancelled capture returned bytes") }
         catch { XCTAssertTrue(error is CancellationError) }
         XCTAssertTrue(host.children.isEmpty)
-        do { _ = try await capture.confirmedJPEG(for: .front); XCTFail("Cancelled adapter restarted") }
+        XCTAssertFalse(background.isHidden)
+
+        do { _ = try await capture.confirmedJPEG(for: .front); XCTFail("Cancelled coordinator restarted") }
         catch { XCTAssertTrue(error is CancellationError) }
+    }
+
+    func testCoordinatorRejectsSecondSideWhileOneIsPending() async throws {
+        let (host, cover, background) = captureHost()
+        let camera = FakeCamera(bytes: jpeg())
+        let capture = DocumentCaptureCoordinator(
+            presenter: ChildCapturePresenter(host: host, below: cover, hiding: background),
+            makeCamera: { camera }, onUserCancel: {})
+        let front = Task { try await capture.confirmedJPEG(for: .front) }
+        try await until { self.cameraController(in: host) != nil }
+
+        do { _ = try await capture.confirmedJPEG(for: .back); XCTFail("Concurrent sides were allowed") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertEqual(host.children.count, 1, "The pending side keeps its screen")
+
+        capture.cancel()
+        _ = try? await front.value
+    }
+
+    func testCoordinatorTearsDownScreenWhenAwaitingTaskIsCancelled() async throws {
+        let (host, cover, background) = captureHost()
+        let camera = FakeCamera(bytes: jpeg())
+        let capture = DocumentCaptureCoordinator(
+            presenter: ChildCapturePresenter(host: host, below: cover, hiding: background),
+            makeCamera: { camera }, onUserCancel: { XCTFail("Task cancellation is not a user cancel") })
+        let front = Task { try await capture.confirmedJPEG(for: .front) }
+        try await until { self.cameraController(in: host) != nil }
+
+        front.cancel()
+        do { _ = try await front.value; XCTFail("Cancelled task returned bytes") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        try await until { host.children.isEmpty }
+        XCTAssertFalse(background.isHidden)
+        let stops = await camera.stops
+        XCTAssertGreaterThan(stops, 0, "Camera shutdown must be requested on teardown")
+    }
+
+    func testCoordinatorFailsWhenPresenterCannotPresent() async throws {
+        let host = UIViewController()
+        host.loadViewIfNeeded()
+        // Cover is never added to the host view, so presentation cannot place the screen below it.
+        let cover = UIView()
+        let camera = FakeCamera(bytes: jpeg())
+        let capture = DocumentCaptureCoordinator(
+            presenter: ChildCapturePresenter(host: host, below: cover),
+            makeCamera: { camera }, onUserCancel: {})
+
+        do { _ = try await capture.confirmedJPEG(for: .front); XCTFail("Capture continued without a screen") }
+        catch { XCTAssertTrue(error is CancellationError) }
+        XCTAssertTrue(host.children.isEmpty)
     }
 
 }

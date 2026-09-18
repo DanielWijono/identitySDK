@@ -124,3 +124,15 @@ The final focused camera suite passed 12 tests with the device-only 30-cycle lif
 Live guidance now exposes semantic accessibility values for no detection, move closer, edge clipping, hold steady and ready; readiness therefore does not rely on yellow/green alone. Crop sliders provide named edges and percentage inset values, and the preview summarizes the combined crop before and after processing. Guidance and crop labels wrap and opt into Dynamic Type.
 
 The focused camera suite passed 13 tests with the physical 30-cycle lifecycle test skipped on iPhone 16 Pro Simulator, iOS 18.3.1. New coverage overrides the camera screen to `.accessibilityExtraExtraExtraLarge`, verifies ready guidance is spoken, completes capture to crop controls, checks all four slider labels/values and confirms scroll content layout. Artifact: `/tmp/identityflow-accessibility-uikit/Logs/Test/Test-UIKitSample-2026.09.17_22-52-55-+0700.xcresult`. This is automated semantic/layout coverage, not hands-on VoiceOver navigation or a visual clipping audit on physical hardware.
+
+## SDK front/back orchestration — 18 September 2026
+
+`DocumentCaptureCoordinator` and `DocumentCapturePresenter`/`ChildCapturePresenter` were added to IdentityFlowUI, and the sample's `LiveCardCapture` adapter was deleted in favour of them. `ConfirmedImageCapture` moved from IdentityFlowSecurity to IdentityFlowCore, so IdentityFlowUI conforms without depending on encryption; `VaultEvidenceSource`'s public signature is unchanged.
+
+The full package suite passed all 38 tests after the protocol move — the same count as before, confirming the move is behaviour-neutral.
+
+On iPhone 16 Pro Simulator, iOS 18.3.1, the UIKitSample run executed 19 component tests with 3 skipped and zero failures, plus all 5 `SimulationUITests`. The camera/adapter suite grew from 14 to 17 cases: the previous `testLiveAdapterSequencesSidesAndRejectsCallbacksAfterCancel` was rewritten against the coordinator and joined by concurrent-side rejection, task-cancellation teardown with camera shutdown, and presenter-unavailable failure. The device-only 30-cycle lifecycle test and both `StorageDeviceTests` skipped explicitly as designed. Artifact: `/tmp/identityflow-facade-uikit/Logs/Test/Test-UIKitSample-2026.09.18_17-11-54-+0700.xcresult`.
+
+The 5 passing `SimulationUITests` are the end-to-end evidence that the rewired sample still completes consent, all four outcomes, review cancellation, retake and background/foreground restart through the SDK-owned coordinator. SwiftUISample also built for generic iOS Simulator from the final source, and `git diff --check` passed.
+
+No new physical-device, VoiceOver or performance validation is claimed. This change relocates already-validated orchestration into the SDK; it does not establish any hardware property.

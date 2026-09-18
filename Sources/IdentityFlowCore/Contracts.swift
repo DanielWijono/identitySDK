@@ -67,6 +67,15 @@ public struct Evidence: Sendable {
     }
 }
 
+/// Capture must return only a user-confirmed, normalized JPEG. Do not persist plaintext.
+/// Declared here rather than in the storage module so UI capture components can conform
+/// without depending on encryption.
+public protocol ConfirmedImageCapture: Sendable {
+    func confirmedJPEG(for side: DocumentSide) async throws -> Data
+    /// Stop owned capture work. The vault adapter independently rejects late results.
+    func cancel() async
+}
+
 /// Capture/review/storage boundary. Return only confirmed evidence. Cleanup must be idempotent.
 /// An implementation must cancel capture and revoke readers on cleanup, including in-flight work.
 public protocol EvidenceSource: Sendable {

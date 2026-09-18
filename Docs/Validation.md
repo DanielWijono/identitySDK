@@ -161,6 +161,6 @@ The device-only hardware gate ran for the first time. DEV TESTING 7, iPhone 14, 
 
 Artifacts: `/tmp/identityflow-device-lifecycle/Logs/Test/Test-UIKitSample-2026.09.18_18-13-37-+0700.xcresult` and `Test-UIKitSample-2026.09.18_18-14-13-+0700.xcresult`.
 
-`SampleUITests` could not run on the device: installing its runner hit the free-provisioning concurrent-app limit. That is a provisioning constraint, not a code or test failure, and the UI suite still passes on Simulator.
+`SampleUITests` could not run on the device: installing its runner was refused under the free Apple ID's App ID registration quota. `UIKitSample` reinstalls successfully while the new `…uitests.xctrunner` App ID is refused, which distinguishes the quota from the concurrent-app limit the error text names. A paid team removes it. This is a provisioning constraint, not a code or test failure, and the UI suite still passes on Simulator.
 
 These results cover one device, one OS version and a Debug build. They establish nothing about other hardware, Release builds, thermal behavior or sustained memory.

@@ -76,6 +76,10 @@ The provisional budget is p95 ≤ 1.5 s, so both runs met it with roughly threef
 
 Evidence: `/tmp/identityflow-device-lifecycle/Logs/Test/Test-UIKitSample-2026.09.18_18-13-37-+0700.xcresult` (focused) and `Test-UIKitSample-2026.09.18_18-14-13-+0700.xcresult` (full target).
 
-`SampleUITests` could not be added in the same session: installing `SampleUITests-Runner` failed with `MIFreeProfileValidatedAppTracker`, the free-provisioning limit on concurrently installed apps. This is a provisioning limit, not a test or code failure; the UI suite continues to pass on Simulator. Free an app slot on the device or use a paid team to run it on hardware.
+`SampleUITests` could not run on hardware: installing `SampleUITests-Runner` failed with `MIFreeProfileValidatedAppTracker`. The reported cause is the free-provisioning app limit, but the app list it prints is empty and removing an installed sideloaded app did not clear it.
+
+Diagnosis: `UIKitSample` reinstalls successfully while the runner is refused, so the constraint is the free Apple ID's **App ID registration quota** (10 per 7 days), not the number of concurrently installed apps. `com.identityflow.samples.uitests.xctrunner` requires a new App ID; `com.identityflow.samples.uikit` is already registered. Deleting further apps therefore cannot help.
+
+Remedies: use a paid Apple Developer Program team, which has no such quota, or wait for the 7-day window to roll over. This is a provisioning constraint, not a test or code failure; the UI suite continues to pass on Simulator.
 
 Still outstanding, all requiring manual interaction: camera permission revocation and return-to-app recheck, instrumented lock-state denial during crop editing, interruption stress, still/preview orientation comparison, hands-on VoiceOver order and announcements, minimum-iOS-16 hardware, and memory/thermal measurements.

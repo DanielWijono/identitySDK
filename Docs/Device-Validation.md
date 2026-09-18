@@ -1,6 +1,6 @@
 # Physical-iPhone validation gate
 
-Status: two automated storage checks passed on the physical iPhone 14; manual lock/unlock, process termination and full-flow device checks remain pending. A standalone camera-test build was signed and installed on the user-selected iPhone 14 (iOS 17.3) on 13 September 2026. Initial launch was denied by iOS pending developer trust. After the user trusted the developer, devicectl successfully launched the installed app at 10:10 Asia/Jakarta. The user subsequently confirmed that live capture reached the expected confirmation/discard message. This is user-reported success, not an automated preview assessment. On 13 September 2026, an iPhone 15 Pro was available via devicectl, but the user deferred physical testing. At that earlier step no app was installed and no signing team was configured. Earlier checks on 9–10 September found paired iPhones unavailable. Simulator success is not evidence of physical locked-device data protection.
+Status: the full `CameraComponentTests` target — 19 tests including the 30-cycle camera lifecycle gate and both storage device tests — passed on the physical iPhone 14 with zero skips on 18 September 2026; see the entry at the end of this file for measurements. Manual lock/unlock, permission revocation, VoiceOver, interruption stress and process termination remain pending. A standalone camera-test build was signed and installed on the user-selected iPhone 14 (iOS 17.3) on 13 September 2026. Initial launch was denied by iOS pending developer trust. After the user trusted the developer, devicectl successfully launched the installed app at 10:10 Asia/Jakarta. The user subsequently confirmed that live capture reached the expected confirmation/discard message. This is user-reported success, not an automated preview assessment. On 13 September 2026, an iPhone 15 Pro was available via devicectl, but the user deferred physical testing. At that earlier step no app was installed and no signing team was configured. Earlier checks on 9–10 September found paired iPhones unavailable. Simulator success is not evidence of physical locked-device data protection.
 
 Use synthetic data only. Open the iOS sample project, choose a connected iPhone and your signing team, and run UIKitSample. Record device model, OS version, Xcode/build configuration, time, expected result and observed result for each check.
 
@@ -54,3 +54,28 @@ DEV TESTING 7 subsequently reconnected. The native-preview build installed and l
 The next signed build adds capped Vision rectangle guidance and was installed and launched successfully at 11:18 WIB. It analyzes AVFoundation-managed preview-sized frames at up to 4 Hz on a serial queue while native preview rendering remains separate. The user subsequently reported that testing was good. This is user-observed confirmation of the checklist, not quantified detection accuracy, threshold calibration or guide-alignment measurement. App artifact: `/tmp/identityflow-rectangle-device/Build/Products/Debug-iphoneos/UIKitSample.app`.
 
 A device-only test now covers 30 fresh real-camera start/stop cycles, duplicate-start rejection and the provisional 1.5-second p95 readiness target. The iPhone became unavailable before this test could run. Its Simulator run skips explicitly and the remaining camera component tests pass.
+
+## Repeated camera lifecycle and timing — 18 September 2026
+
+The prepared hardware gate ran. DEV TESTING 7, iPhone 14 (iPhone14,7), iOS 17.3 (21D50), Xcode 26.3, Debug, connected by **USB**. Wireless was attempted first and failed: `tunnelState` was `unavailable`, the last connection was 17 September 08:01 UTC, and `DEV-TESTING-7.coredevice.local` did not resolve from the host's 172.21.9.253 Wi-Fi address. Plugging the device in produced `tunnelState: connected` and `ddiServicesAvailable: true`.
+
+Signing used the development team already recorded on the device-test target, passed as a `DEVELOPMENT_TEAM=5H589R53ZA` command-line override. The Xcode project was not modified.
+
+`CameraComponentTests` target: **19 tests, 0 failures, 0 skipped** — the first run in which no test skipped. This covers 17 camera/adapter/coordinator tests plus the 2 `StorageDeviceTests` that are simulator-skipped by design.
+
+`testRepeatedHardwareLifecycleAndDuplicateStart` performed 30 fresh `StillCamera` start/stop cycles against real hardware and confirmed that a duplicate start on a running camera fails with `CameraError.busy`.
+
+Camera readiness after start, measured over 30 starts in two separate runs:
+
+| Run | min | median | p95 | max |
+| --- | --- | --- | --- | --- |
+| 18:13:37 | 0.353 s | 0.376 s | 0.477 s | 0.658 s |
+| 18:14:13 | 0.361 s | 0.378 s | 0.385 s | 0.668 s |
+
+The provisional budget is p95 ≤ 1.5 s, so both runs met it with roughly threefold margin. These are Debug-build readiness times on one iPhone 14 at room temperature, recorded as a test attachment named `camera-readiness`. They are not a Release measurement, a thermal-soak result, or evidence for any other device.
+
+Evidence: `/tmp/identityflow-device-lifecycle/Logs/Test/Test-UIKitSample-2026.09.18_18-13-37-+0700.xcresult` (focused) and `Test-UIKitSample-2026.09.18_18-14-13-+0700.xcresult` (full target).
+
+`SampleUITests` could not be added in the same session: installing `SampleUITests-Runner` failed with `MIFreeProfileValidatedAppTracker`, the free-provisioning limit on concurrently installed apps. This is a provisioning limit, not a test or code failure; the UI suite continues to pass on Simulator. Free an app slot on the device or use a paid team to run it on hardware.
+
+Still outstanding, all requiring manual interaction: camera permission revocation and return-to-app recheck, instrumented lock-state denial during crop editing, interruption stress, still/preview orientation comparison, hands-on VoiceOver order and announcements, minimum-iOS-16 hardware, and memory/thermal measurements.

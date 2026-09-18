@@ -244,6 +244,16 @@ final class CameraComponentTests: XCTestCase {
         }
         let sorted = readiness.sorted()
         let p95 = sorted[Int((Double(sorted.count - 1) * 0.95).rounded(.up))]
+        // Record the measurement, not just the pass/fail. A budget is only meaningful when the
+        // observed numbers and the device they came from are published with it.
+        let summary = String(format: "readiness seconds over %d starts: min %.3f median %.3f p95 %.3f max %.3f",
+                             sorted.count, sorted[0], sorted[sorted.count / 2], p95, sorted[sorted.count - 1])
+        let device = "\(UIDevice.current.model) iOS \(UIDevice.current.systemVersion)"
+        let attachment = XCTAttachment(string: "\(device)\n\(summary)\nsamples: \(readiness)")
+        attachment.name = "camera-readiness"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        print("CAMERA READINESS — \(device) — \(summary)")
         XCTAssertLessThanOrEqual(p95, 1.5, "Camera readiness p95 was \(p95) seconds: \(readiness)")
         #endif
     }

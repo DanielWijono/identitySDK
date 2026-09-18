@@ -339,7 +339,10 @@ final class SimulationViewController: UIViewController {
         let session = VerificationSession(id: UUID().uuidString, token: "synthetic-demo-token", expiresAt: Date().addingTimeInterval(180))
         let cancelCapture: () -> Void = { [weak self] in self?.cancelSimulation() }
         let capture: any SampleCapture = input.selectedSegmentIndex == 1
-            ? LiveCardCapture(host: self, privacyCover: privacyCover, background: contentScroll, onCancel: cancelCapture)
+            ? DocumentCaptureCoordinator(
+                presenter: ChildCapturePresenter(host: self, below: privacyCover, hiding: contentScroll),
+                sideDescription: { "the \($0.rawValue) of a printed test card (no real ID)" },
+                onUserCancel: cancelCapture)
             : SyntheticCardCapture(host: self, privacyCover: privacyCover, background: contentScroll, onCancel: cancelCapture)
         activeCapture = capture
         let source = VaultEvidenceSource(sessionID: session.id, expiresAt: session.expiresAt,
@@ -581,89 +584,5 @@ protocol SampleCapture: ConfirmedImageCapture {
     func cancel()
 }
 
-/// Embeds each side below the privacy cover; only confirmed normalized bytes leave the screen.
-@MainActor
-final class LiveCardCapture: SampleCapture {
-    private weak var host: UIViewController?
-    private weak var privacyCover: UIView?
-    private weak var background: UIView?
-    private let onCancel: () -> Void
-    private let makeScreen: (String) -> CameraReviewViewController
-    private var screen: CameraReviewViewController?
-    private var pending: CheckedContinuation<Data, any Error>?
-    private var cancelled = false
-    private var generation = UUID()
-
-    init(host: UIViewController, privacyCover: UIView, background: UIView,
-         makeScreen: @escaping (String) -> CameraReviewViewController = { CameraReviewViewController(sideDescription: $0) },
-         onCancel: @escaping () -> Void) {
-        self.host = host
-        self.privacyCover = privacyCover
-        self.background = background
-        self.makeScreen = makeScreen
-        self.onCancel = onCancel
-    }
-
-    func confirmedJPEG(for side: DocumentSide) async throws -> Data {
-        try Task.checkCancellation()
-        guard !cancelled, pending == nil, let host, let privacyCover else { throw CancellationError() }
-        let bytes: Data = try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
-                pending = continuation
-                let id = UUID()
-                generation = id
-                let controller = makeScreen("the \(side.rawValue) of a printed test card (no real ID)")
-                screen = controller
-                controller.onConfirm = { [weak self] bytes in
-                    guard let self, !self.cancelled, self.generation == id, let pending = self.pending else { return }
-                    self.pending = nil
-                    self.removeScreen()
-                    pending.resume(returning: bytes)
-                }
-                controller.onCancel = { [weak self] in
-                    guard let self, !self.cancelled, self.generation == id else { return }
-                    // Cancel the client first. Cleanup will resolve the outstanding capture.
-                    self.onCancel()
-                }
-                host.addChild(controller)
-                controller.view.frame = host.view.bounds
-                controller.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-                controller.view.accessibilityViewIsModal = true
-                host.view.insertSubview(controller.view, belowSubview: privacyCover)
-                controller.didMove(toParent: host)
-                background?.isHidden = true
-            }
-        } onCancel: {
-            Task { @MainActor [weak self] in self?.cancel() }
-        }
-        try Task.checkCancellation()
-        guard !cancelled else { throw CancellationError() }
-        return bytes
-    }
-
-    func hidePreview() {
-        // Invalidate callbacks before removing the child (which invokes disappearance).
-        cancelled = true
-        removeScreen()
-    }
-
-    func cancel() {
-        hidePreview()
-        let continuation = pending
-        pending = nil
-        continuation?.resume(throwing: CancellationError())
-    }
-
-    private func removeScreen() {
-        generation = UUID()
-        guard let screen else { return }
-        self.screen = nil
-        screen.onConfirm = nil
-        screen.onCancel = nil
-        screen.cancelCapture()
-        screen.willMove(toParent: nil)
-        screen.view.removeFromSuperview()
-        screen.removeFromParent()
-        background?.isHidden = false
-    }
-}
+/// The SDK coordinator already provides synchronous preview teardown and cancellation.
+extension DocumentCaptureCoordinator: SampleCapture {}

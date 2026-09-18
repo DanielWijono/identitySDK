@@ -1,19 +1,31 @@
-# Camera integration handoff
+# Handoff
 
-Live front/back test-card capture is implemented in the shared sample host. Choose Live camera, accept the disclosure, and Start simulation. Permission is requested before the vault session. Each confirmed side goes through temporary encrypted storage and the local simulated provider; no network upload or identity verification occurs. Generated cards remain available.
+## Current state
 
-The UIKit app with crop controls was launched on DEV TESTING 7 (iPhone 14), and the user reported that front/back crop editing, crop preview, retake, locking during crop editing and a fresh run behaved as expected. This is user-observed UI validation, not an instrumented security-gate result. The remaining physical security and accessibility gates still require separate evidence; use printed test cards only.
+M0–M2 are implemented, M3 is code-complete with only physical gates remaining, and M4's transport-recovery half is implemented and covered.
 
-The reported preview lag was addressed with `AVCaptureVideoPreviewLayer`; after installation on DEV TESTING 7, the user reported “very good no lagging.” The next M3 step is now implemented and installed: a separate preview-sized Vision path analyzes at most four frames per second and reports rectangle presence, coverage, margins and three-frame stability without blocking the manual shutter. The full package suite passes 38 tests and all 10 camera/adapter component tests pass.
+`DocumentCaptureCoordinator` (IdentityFlowUI) owns front/back capture orchestration; the sample consumes it rather than its own adapter. `HTTPVerificationProvider` (IdentityFlowHTTP) implements the demo HTTP contract, and `DemoVerificationService` (IdentityFlowDemoService) models the server in process so tests can count logical mutations rather than client calls.
 
-The user subsequently reported that the physical rectangle-guidance test was good. This is user-observed behavior, not a measured detection-accuracy result. No automatic shutter or automatic final crop is intended.
+Package suite: 54 tests. UIKitSample on iPhone 16 Pro Simulator, iOS 18.3.1: 19 component tests with 3 skipped, plus 5 `SimulationUITests`. See Validation.md for artifacts.
 
-An SDK-owned `CameraReviewView` SwiftUI wrapper is now implemented over the same UIKit controller. Its component test verifies controller creation and cancellation forwarding through `UIHostingController`; the SwiftUI sample builds successfully. This completes the M3 single-side SwiftUI presentation deliverable without duplicating camera state.
+The duplicate-submission gate was verified by mutation, not by a green test alone: disabling client reconciliation fails the lost-response tests, and disabling server idempotency fails the replayed-key test. Keep both defences.
 
-Denied/restricted permission recovery is also implemented in both sample camera entry points. The sample presents **Open Camera Settings**, rechecks authorization on active return, and does not start capture or a verification session until the user explicitly tries again. Injected authorization/settings hooks provide deterministic component coverage without mutating real device permissions. The current simulator camera suite passes 12 tests with the device-only lifecycle test skipped; SwiftUISample builds successfully.
+## Next steps, in order
 
-Accessibility follow-up is implemented: preview guidance has explicit spoken values independent of yellow/green color, crop sliders announce edge names and percentage insets, labels wrap with Dynamic Type, and the capture-to-crop path passes under `.accessibilityExtraExtraExtraLarge`. The camera suite now passes 13 tests with the physical lifecycle test skipped. Hands-on VoiceOver order and announcements remain pending.
+1. **Real HTTP demo server.** The current demo service is in-process and shares the `Wire` codec with the adapter, so nothing yet proves wire compatibility or exercises `URLSessionTransport`. A small local server would cover serialization, TLS and genuine network faults. This is the remaining half of M4's stated deliverable.
+2. **Foreground/background reconciliation adapter.** Backgrounding must cancel foreground transfer and force authoritative reconciliation before another mutation. Not started.
+3. **Calibrate the blur threshold on hardware.** `RectangleGuidanceTracker.minimumSharpness` (0.35, reference variance 400) is set from synthetic fixtures only, and those saturate the metric. Read `CameraGuidance.sharpness` on device against printed test cards, in and out of focus, and set the threshold from observed values. Until then the heuristic may call acceptable frames blurry.
+4. **Remaining physical M3 gates.** These need a connected, unlocked device:
+   - `CameraComponentTests/testRepeatedHardwareLifecycleAndDuplicateStart` — 30 real start/stop cycles, duplicate-start rejection, provisional 1.5 s p95 readiness.
+   - Camera permission revocation and return-to-app recheck.
+   - Instrumented lock-state denial during crop editing, interruption stress, still/preview orientation comparison, minimum-iOS-16 hardware, hands-on VoiceOver, performance measurements.
 
-Next physical gate: reconnect and unlock DEV TESTING 7, then run `CameraComponentTests/testRepeatedHardwareLifecycleAndDuplicateStart`. The device-only test performs 30 real start/stop cycles, verifies duplicate start returns `CameraError.busy`, and checks the provisional p95 readiness target of 1.5 seconds. Afterward, revoke Camera access in Settings and confirm the new recovery action and return-to-app recheck on hardware.
+## Portfolio readiness
 
-Local changes include prior physical storage tests and user Xcode development-team edits. Preserve those edits. See Validation.md for automated results.
+The plan's stated goal is a portfolio implementation whose success criterion is that a reviewer can install the package, run a labeled simulation without credentials, and inspect meaningful tests. Toward that: the repository now carries an MIT `LICENSE`, and the README opens with a five-minute tour that needs no credentials, signing team or device, plus a short list of the three files worth reading first.
+
+Still outstanding for that goal: DocC or equivalent API documentation, and a short demo recording. The demo recording needs a person driving a real device and cannot be automated here.
+
+## Cautions
+
+Earlier physical results are user-reported UI observations, not instrumented security evidence. Use printed test cards only. Keep normal simulator signing for sample runs; `CODE_SIGNING_ALLOWED=NO` breaks vault storage initialization. Preserve local Xcode development-team edits.

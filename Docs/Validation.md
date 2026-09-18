@@ -124,3 +124,57 @@ The final focused camera suite passed 12 tests with the device-only 30-cycle lif
 Live guidance now exposes semantic accessibility values for no detection, move closer, edge clipping, hold steady and ready; readiness therefore does not rely on yellow/green alone. Crop sliders provide named edges and percentage inset values, and the preview summarizes the combined crop before and after processing. Guidance and crop labels wrap and opt into Dynamic Type.
 
 The focused camera suite passed 13 tests with the physical 30-cycle lifecycle test skipped on iPhone 16 Pro Simulator, iOS 18.3.1. New coverage overrides the camera screen to `.accessibilityExtraExtraExtraLarge`, verifies ready guidance is spoken, completes capture to crop controls, checks all four slider labels/values and confirms scroll content layout. Artifact: `/tmp/identityflow-accessibility-uikit/Logs/Test/Test-UIKitSample-2026.09.17_22-52-55-+0700.xcresult`. This is automated semantic/layout coverage, not hands-on VoiceOver navigation or a visual clipping audit on physical hardware.
+
+## SDK front/back orchestration — 18 September 2026
+
+`DocumentCaptureCoordinator` and `DocumentCapturePresenter`/`ChildCapturePresenter` were added to IdentityFlowUI, and the sample's `LiveCardCapture` adapter was deleted in favour of them. `ConfirmedImageCapture` moved from IdentityFlowSecurity to IdentityFlowCore, so IdentityFlowUI conforms without depending on encryption; `VaultEvidenceSource`'s public signature is unchanged.
+
+The full package suite passed all 38 tests after the protocol move — the same count as before, confirming the move is behaviour-neutral.
+
+On iPhone 16 Pro Simulator, iOS 18.3.1, the UIKitSample run executed 19 component tests with 3 skipped and zero failures, plus all 5 `SimulationUITests`. The camera/adapter suite grew from 14 to 17 cases: the previous `testLiveAdapterSequencesSidesAndRejectsCallbacksAfterCancel` was rewritten against the coordinator and joined by concurrent-side rejection, task-cancellation teardown with camera shutdown, and presenter-unavailable failure. The device-only 30-cycle lifecycle test and both `StorageDeviceTests` skipped explicitly as designed. Artifact: `/tmp/identityflow-facade-uikit/Logs/Test/Test-UIKitSample-2026.09.18_17-11-54-+0700.xcresult`.
+
+The 5 passing `SimulationUITests` are the end-to-end evidence that the rewired sample still completes consent, all four outcomes, review cancellation, retake and background/foreground restart through the SDK-owned coordinator. SwiftUISample also built for generic iOS Simulator from the final source, and `git diff --check` passed.
+
+No new physical-device, VoiceOver or performance validation is claimed. This change relocates already-validated orchestration into the SDK; it does not establish any hardware property.
+
+## M4 HTTP provider and recovery — 18 September 2026
+
+Added `IdentityFlowHTTP` (`HTTPVerificationProvider`, `URLSessionTransport`, `RetryPolicy`, wire types) and `IdentityFlowDemoService` (`DemoVerificationService`, `DemoServiceTransport`). The demo service is an in-process model of the documented contract; it is not a socket server, and it shares the `Wire` codec with the adapter, so these results establish protocol *semantics* rather than wire compatibility.
+
+The full package suite passed all 54 Swift Testing tests (38 existing plus 16 contract tests). Coverage: whole-contract run through `VerificationClient`; lost response after an accepted commit; lost response after an accepted upload; replayed idempotency key; conflicting payload under an existing key; expired session; rejected credentials; rate limit honouring `Retry-After`; hostile `Retry-After` capped at 10 s; exhausted bounded retries with asserted 0.5/1/2 s backoff; malformed state body; server-enforced evidence size limit; delayed decision handing off as pending after the 30-second budget with 1/2/4/5 s poll backoff; delayed decision resolving when the server decides; cancellation while awaiting a decision; and a hostile error body whose free-form text must not reach the caller.
+
+Timing is deterministic: an injected clock records each sleep and advances virtual time without elapsed wall time, and jitter is fixed. The suite passed 5 consecutive runs with no flakiness after an initial race — an instant clock let the decision budget elapse before a test could cancel — was fixed by parking the clock during the cancellation test.
+
+The exit gate was verified by mutation rather than by observing a green test. With client-side reconciliation disabled, `lostResponseAfterAcceptedCommitProducesExactlyOneSubmission` fails on `submissionRequests == 1` and the transport call count, and `lostResponseAfterAcceptedUploadDoesNotStoreEvidenceTwice` fails on `evidenceRequests == 2`. With server-side idempotency disabled instead, `replayedCommitWithSameKeyCreatesNoSecondSubmission` fails on `logicalSubmissions == 1` while the lost-response gate still passes, because reconciliation alone prevents the second request. The two defences are therefore independently covered. Both mutations were reverted.
+
+UIKitSample built for generic iOS Simulator and the independent command-line consumer rebuilt and printed its simulated approval, confirming the new targets did not disturb existing consumers.
+
+No network, TLS, real-server, physical-device or performance validation is claimed. `URLSessionTransport` itself is exercised only by compilation; every contract test runs against the in-process service.
+
+## Physical camera lifecycle gate — 18 September 2026
+
+The device-only hardware gate ran for the first time. DEV TESTING 7, iPhone 14, iOS 17.3 (21D50), Xcode 26.3, Debug, over USB after the wireless tunnel proved unavailable.
+
+`CameraComponentTests` target on device: **19 tests, 0 failures, 0 skipped**, covering 17 camera/adapter/coordinator tests and the 2 `StorageDeviceTests` that skip on Simulator. This is also the first hardware run of the `DocumentCaptureCoordinator` tests added with the front/back orchestration facade.
+
+`testRepeatedHardwareLifecycleAndDuplicateStart` completed 30 real start/stop cycles and confirmed duplicate-start rejection with `CameraError.busy`. Readiness p95 was 0.477 s and 0.385 s across two runs, against the provisional 1.5-second budget. The test now records min/median/p95/max plus the raw samples as a `camera-readiness` attachment, so the budget is published with its measurement rather than only asserted.
+
+Artifacts: `/tmp/identityflow-device-lifecycle/Logs/Test/Test-UIKitSample-2026.09.18_18-13-37-+0700.xcresult` and `Test-UIKitSample-2026.09.18_18-14-13-+0700.xcresult`.
+
+`SampleUITests` could not run on the device: installing its runner was refused under the free Apple ID's App ID registration quota. `UIKitSample` reinstalls successfully while the new `…uitests.xctrunner` App ID is refused, which distinguishes the quota from the concurrent-app limit the error text names. A paid team removes it. This is a provisioning constraint, not a code or test failure, and the UI suite still passes on Simulator.
+
+These results cover one device, one OS version and a Debug build. They establish nothing about other hardware, Release builds, thermal behavior or sustained memory.
+
+## Blur heuristic — 18 September 2026
+
+The v0.1 capture commitments listed a basic blur heuristic that had never been implemented. `SharpnessScore` now computes the variance of the discrete Laplacian over the luma plane inside the detected rectangle, on the existing 4 Hz analysis path, and `CameraGuidance` gained a `tooBlurry` phase plus a public `sharpness` value. The manual shutter stays enabled in every state and the outline turns green only when ready, so the heuristic is advisory exactly as the plan requires.
+
+The full package suite passed all 60 tests (54 existing plus 6 new). Coverage separates a focused fixture from a defocused one, returns zero for flat and degenerate input, confirms a flat region does not inherit sharpness from elsewhere in the frame, checks that framing problems still take precedence over focus, verifies that readiness is immediate once focus lands because stability keeps accumulating, and confirms unchanged behaviour when no measurement is supplied.
+
+Measured fixture scores: sharp checkerboard 1.0, radius-2 box blur 1.0, radius-4 box blur 0.198, flat field 0.0. The saturation at radius 2 is recorded deliberately — it shows the synthetic fixture is far higher contrast than a real document frame, so these numbers do **not** establish that the 0.35 threshold is correct for physical capture.
+
+On device (DEV TESTING 7, iPhone 14, iOS 17.3) the full `CameraComponentTests` target passed 19 tests with zero skips and zero failures with the sharpness path active. Camera readiness p95 was 0.390 s, unchanged from the 0.477 s and 0.385 s measured before the change, so the added per-frame Laplacian work did not regress startup on that device.
+
+Swift 6 strict concurrency rejected the first implementation for capturing a mutable variable in the analysis closure; it was restructured to bind the score immutably.
+
+Threshold calibration against printed test cards on hardware remains an open gate. Until then the heuristic may report `tooBlurry` for acceptable frames.

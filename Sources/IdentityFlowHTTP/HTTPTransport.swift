@@ -12,6 +12,7 @@ public struct HTTPRequest: Sendable, Equatable {
     }
 }
 
+/// One HTTP reply.
 public struct HTTPResponse: Sendable, Equatable {
     public var status: Int
     public var headers: [String: String]
@@ -36,6 +37,7 @@ public enum HTTPTransportError: Error, Sendable, Equatable {
     case malformedResponse
 }
 
+/// Sends one HTTP exchange. Inject a fake to drive contract tests without sockets.
 public protocol HTTPTransport: Sendable {
     func send(_ request: HTTPRequest) async throws -> HTTPResponse
 }

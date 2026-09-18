@@ -3,6 +3,11 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
+/// Why an image could not be normalized.
+///
+/// `outputTooLarge` is deliberate: there is no automatic quality-reduction loop, because silently
+/// degrading an identity document until it fits would trade readability for convenience. Offer
+/// recapture instead.
 public enum ImageNormalizationError: Error, Sendable, Equatable {
     case invalidImage, unsupportedFormat, inputTooLarge, outputTooLarge, encodingFailed
 }

@@ -5,10 +5,15 @@ import Foundation
 import os
 import Vision
 
+/// Failures from the capture device.
 public enum CameraError: Error, Sendable {
     case permissionRequired, unavailable, configurationFailed, interrupted, captureFailed, stopped, busy
 }
 
+/// Asynchronous notifications from a running camera.
+///
+/// Guidance is advisory throughout: it never blocks the manual shutter or asserts that a document
+/// is valid.
 public enum CameraEvent: Sendable {
     case preview(CGImage)
     case guidance(CameraGuidance)
@@ -30,6 +35,11 @@ public extension CameraDevice {
     @MainActor func makePreviewLayer() -> AVCaptureVideoPreviewLayer? { nil }
 }
 
+/// Camera permission state.
+///
+/// Inspect ``current`` and call ``request()`` only after an explicit user action, and before
+/// starting a vault-backed session — a permission prompt suspends the app, which would otherwise
+/// trip the inactivity gate mid-session. Capture components never request access implicitly.
 public enum CameraAuthorization: Sendable {
     case authorized, notDetermined, denied, restricted, unavailable
 

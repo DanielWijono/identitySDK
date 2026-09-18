@@ -2,6 +2,10 @@ import Foundation
 import CryptoKit
 import IdentityFlowCore
 
+/// Why a vault operation failed.
+///
+/// These fail closed: a revoked reader, a missing key or tampered ciphertext produces an error
+/// rather than degraded access.
 public enum VaultError: Error, Sendable, Equatable {
     case inactive, expired, invalidEvidence, revoked, integrityFailure
     case protectedDataUnavailable, keyUnavailable, keychainFailure, fileFailure

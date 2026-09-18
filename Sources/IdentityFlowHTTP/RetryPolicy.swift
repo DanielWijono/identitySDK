@@ -6,6 +6,7 @@ public protocol ProviderClock: Sendable {
     func sleep(for duration: Duration) async throws
 }
 
+/// Real time and real sleeping.
 public struct SystemProviderClock: ProviderClock {
     public init() {}
     public var now: Date { Date() }
@@ -14,6 +15,11 @@ public struct SystemProviderClock: ProviderClock {
     }
 }
 
+/// Bounds automatic retries.
+///
+/// Only transient outcomes are retried: 429, 500, 502, 503, 504 and transport failures. Auth
+/// failures, conflicts and expired sessions are decisions the server already made, so repeating
+/// them cannot change the result.
 public struct RetryPolicy: Sendable {
     /// Automatic retries after the first attempt.
     public var maxRetries: Int

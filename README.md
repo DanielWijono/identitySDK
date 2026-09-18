@@ -15,6 +15,14 @@ swift run --package-path Examples/Simulation Simulation   # labeled simulated ap
 
 Then open `Examples/iOS/IdentityFlowSamples.xcodeproj`, pick **UIKitSample** and any iPhone simulator, and press **⌘R**.
 
+API reference: open `Package.swift` in Xcode and choose **Product ▸ Build Documentation** (⌃⇧⌘D), or:
+
+```sh
+xcodebuild docbuild -scheme IdentityFlowCore -destination 'platform=macOS'
+```
+
+Start at **IdentityFlowCore ▸ Getting started**. No documentation plugin is required, so the package still has zero dependencies.
+
 If you only read three things, read these:
 
 | What | Why it is interesting |

@@ -24,7 +24,9 @@ The duplicate-submission gate was verified by mutation, not by a green test alon
 
 The plan's stated goal is a portfolio implementation whose success criterion is that a reviewer can install the package, run a labeled simulation without credentials, and inspect meaningful tests. Toward that: the repository now carries an MIT `LICENSE`, and the README opens with a five-minute tour that needs no credentials, signing team or device, plus a short list of the three files worth reading first.
 
-Still outstanding for that goal: DocC or equivalent API documentation, and a short demo recording. The demo recording needs a person driving a real device and cannot be automated here.
+DocC catalogs now exist for IdentityFlowCore, Capture, Security, UI and HTTP, with curated topic groups and a Getting started article. They build with zero DocC warnings and need no documentation plugin, so the package keeps its zero-dependency property.
+
+Still outstanding for that goal: a short demo recording, which needs a person driving a real device and cannot be automated here.
 
 ## Cautions
 

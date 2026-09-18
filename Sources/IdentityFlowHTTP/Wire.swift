@@ -6,6 +6,10 @@ public enum SessionState: String, Sendable, Codable {
     case awaitingConsent, awaitingEvidence, submitted, approved, rejected, cancelled, expired
 }
 
+/// Authoritative session state, as returned by `GET /sessions/{id}`.
+///
+/// This is what reconciliation consults after an ambiguous failure to decide whether a mutation
+/// already landed.
 public struct SessionStateBody: Sendable, Codable, Equatable {
     public var state: SessionState
     public var expiresAt: Date
@@ -22,11 +26,13 @@ public struct SessionStateBody: Sendable, Codable, Equatable {
     }
 }
 
+/// Request body for `PUT /sessions/{id}/consent`.
 public struct ConsentBody: Sendable, Codable, Equatable {
     public var disclosureVersion: String
     public init(disclosureVersion: String) { self.disclosureVersion = disclosureVersion }
 }
 
+/// Request body for `POST /sessions/{id}/submission`.
 public struct SubmissionBody: Sendable, Codable, Equatable {
     public var frontEvidenceID: UUID
     public var backEvidenceID: UUID
@@ -35,6 +41,7 @@ public struct SubmissionBody: Sendable, Codable, Equatable {
     }
 }
 
+/// Successful response to a commit.
 public struct SubmissionAccepted: Sendable, Codable, Equatable {
     public var reference: String
     public var state: SessionState
@@ -49,6 +56,7 @@ public struct ErrorBody: Sendable, Codable, Equatable {
     public init(code: String, reference: String? = nil) { self.code = code; self.reference = reference }
 }
 
+/// Shared JSON coding and the header names used by the demo contract.
 public enum Wire {
     public static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()

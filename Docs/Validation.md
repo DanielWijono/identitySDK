@@ -178,3 +178,20 @@ On device (DEV TESTING 7, iPhone 14, iOS 17.3) the full `CameraComponentTests` t
 Swift 6 strict concurrency rejected the first implementation for capturing a mutable variable in the analysis closure; it was restructured to bind the score immutably.
 
 Threshold calibration against printed test cards on hardware remains an open gate. Until then the heuristic may report `tooBlurry` for acceptable frames.
+
+## API documentation — 18 September 2026
+
+Added DocC catalogs for IdentityFlowCore, IdentityFlowCapture, IdentityFlowSecurity, IdentityFlowUI and IdentityFlowHTTP, each with an overview and curated topic groups, plus a Getting started article covering session creation, consent, running, outcome handling and cleanup recovery. Public declarations that carried no documentation — including `VerificationError`, `VerificationOutcome`, `VerificationProgress`, `DocumentSide`, `Consent`, `Evidence`, `VerificationProvider`, `CameraError`, `CameraEvent`, `CameraAuthorization`, `ImageNormalizationError`, `VaultError` and the HTTP wire types — now document behaviour rather than restating their names.
+
+No documentation plugin was added. DocC catalogs are consumed natively by Xcode, so the package retains zero dependencies; adding `swift-docc-plugin` would have made every consumer resolve a dependency purely to build documentation.
+
+All five catalogs build with **zero DocC warnings**:
+
+- Via the samples project: `xcodebuild docbuild -project Examples/iOS/IdentityFlowSamples.xcodeproj -scheme <Core|Capture|Security|UI> -destination 'generic/platform=iOS Simulator'`.
+- Via the package directly: `xcodebuild docbuild -scheme IdentityFlowCore -destination 'platform=macOS'`, and the same for IdentityFlowHTTP. IdentityFlowUI is iOS-only and needs an iOS Simulator destination.
+
+`.doccarchive` bundles were produced for every module. An initial run reported one real warning — a lone `- Parameter` on the two-parameter `submit(session:idempotencyKey:)` — which was fixed by documenting both parameters; an earlier narrower grep had hidden it.
+
+IdentityFlowHTTP has no scheme in the samples project, so it is verified through the package build instead. Package suite still passes 60 tests.
+
+Documentation content is unverified prose: it describes behaviour asserted by tests elsewhere in this record, and building it confirms only that links and symbols resolve.

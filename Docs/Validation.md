@@ -164,3 +164,17 @@ Artifacts: `/tmp/identityflow-device-lifecycle/Logs/Test/Test-UIKitSample-2026.0
 `SampleUITests` could not run on the device: installing its runner was refused under the free Apple ID's App ID registration quota. `UIKitSample` reinstalls successfully while the new `…uitests.xctrunner` App ID is refused, which distinguishes the quota from the concurrent-app limit the error text names. A paid team removes it. This is a provisioning constraint, not a code or test failure, and the UI suite still passes on Simulator.
 
 These results cover one device, one OS version and a Debug build. They establish nothing about other hardware, Release builds, thermal behavior or sustained memory.
+
+## Blur heuristic — 18 September 2026
+
+The v0.1 capture commitments listed a basic blur heuristic that had never been implemented. `SharpnessScore` now computes the variance of the discrete Laplacian over the luma plane inside the detected rectangle, on the existing 4 Hz analysis path, and `CameraGuidance` gained a `tooBlurry` phase plus a public `sharpness` value. The manual shutter stays enabled in every state and the outline turns green only when ready, so the heuristic is advisory exactly as the plan requires.
+
+The full package suite passed all 60 tests (54 existing plus 6 new). Coverage separates a focused fixture from a defocused one, returns zero for flat and degenerate input, confirms a flat region does not inherit sharpness from elsewhere in the frame, checks that framing problems still take precedence over focus, verifies that readiness is immediate once focus lands because stability keeps accumulating, and confirms unchanged behaviour when no measurement is supplied.
+
+Measured fixture scores: sharp checkerboard 1.0, radius-2 box blur 1.0, radius-4 box blur 0.198, flat field 0.0. The saturation at radius 2 is recorded deliberately — it shows the synthetic fixture is far higher contrast than a real document frame, so these numbers do **not** establish that the 0.35 threshold is correct for physical capture.
+
+On device (DEV TESTING 7, iPhone 14, iOS 17.3) the full `CameraComponentTests` target passed 19 tests with zero skips and zero failures with the sharpness path active. Camera readiness p95 was 0.390 s, unchanged from the 0.477 s and 0.385 s measured before the change, so the added per-frame Laplacian work did not regress startup on that device.
+
+Swift 6 strict concurrency rejected the first implementation for capturing a mutable variable in the analysis closure; it was restructured to bind the score immutably.
+
+Threshold calibration against printed test cards on hardware remains an open gate. Until then the heuristic may report `tooBlurry` for acceptable frames.

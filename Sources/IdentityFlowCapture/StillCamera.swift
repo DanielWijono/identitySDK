@@ -247,9 +247,22 @@ private final class RectangleFrames: NSObject, AVCaptureVideoDataOutputSampleBuf
         let topLeftBounds = lowerLeftBounds.map {
             CGRect(x: $0.minX, y: 1 - $0.maxY, width: $0.width, height: $0.height)
         }
+        // Score focus inside the detected card only: a busy background would otherwise mask a
+        // defocused document. Runs on the same throttled, serial analysis path as detection.
+        let sharpness: Double? = topLeftBounds.flatMap { region in
+            guard CVPixelBufferLockBaseAddress(pixels, .readOnly) == kCVReturnSuccess else { return nil }
+            defer { CVPixelBufferUnlockBaseAddress(pixels, .readOnly) }
+            guard let luma = CVPixelBufferGetBaseAddressOfPlane(pixels, 0) else { return nil }
+            return SharpnessScore.score(
+                luma: luma.assumingMemoryBound(to: UInt8.self),
+                width: CVPixelBufferGetWidthOfPlane(pixels, 0),
+                height: CVPixelBufferGetHeightOfPlane(pixels, 0),
+                rowBytes: CVPixelBufferGetBytesPerRowOfPlane(pixels, 0),
+                region: region)
+        }
         let guidance = state.withLock { state -> CameraGuidance? in
             guard state.active else { return nil }
-            return state.tracker.update(topLeftBounds)
+            return state.tracker.update(topLeftBounds, sharpness: sharpness)
         }
         if let guidance { deliver(guidance) }
     }

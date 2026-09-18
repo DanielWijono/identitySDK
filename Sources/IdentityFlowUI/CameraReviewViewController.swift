@@ -197,6 +197,8 @@ public final class CameraReviewViewController: UIViewController {
             text = "Card detected near an edge. Move it inward so every corner is visible."
         case .holdSteady:
             text = "Card detected. Hold the phone and card steady."
+        case .tooBlurry:
+            text = "Card detected but the image looks blurry. Hold still and let the camera focus. You can still take the photo manually."
         case .ready:
             text = "Card detected and steady. Take the photo when ready."
         }
@@ -206,6 +208,7 @@ public final class CameraReviewViewController: UIViewController {
         case .moveCloser: "Card detected but too small. Move closer."
         case .keepInside: "Card detected near an edge. Move it inward."
         case .holdSteady: "Card detected. Hold steady."
+        case .tooBlurry: "Card detected but out of focus. Hold still to let the camera focus. Manual capture is available."
         case .ready: "Card detected and steady. Ready for manual capture."
         }
     }

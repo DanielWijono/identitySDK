@@ -150,3 +150,17 @@ The exit gate was verified by mutation rather than by observing a green test. Wi
 UIKitSample built for generic iOS Simulator and the independent command-line consumer rebuilt and printed its simulated approval, confirming the new targets did not disturb existing consumers.
 
 No network, TLS, real-server, physical-device or performance validation is claimed. `URLSessionTransport` itself is exercised only by compilation; every contract test runs against the in-process service.
+
+## Physical camera lifecycle gate — 18 September 2026
+
+The device-only hardware gate ran for the first time. DEV TESTING 7, iPhone 14, iOS 17.3 (21D50), Xcode 26.3, Debug, over USB after the wireless tunnel proved unavailable.
+
+`CameraComponentTests` target on device: **19 tests, 0 failures, 0 skipped**, covering 17 camera/adapter/coordinator tests and the 2 `StorageDeviceTests` that skip on Simulator. This is also the first hardware run of the `DocumentCaptureCoordinator` tests added with the front/back orchestration facade.
+
+`testRepeatedHardwareLifecycleAndDuplicateStart` completed 30 real start/stop cycles and confirmed duplicate-start rejection with `CameraError.busy`. Readiness p95 was 0.477 s and 0.385 s across two runs, against the provisional 1.5-second budget. The test now records min/median/p95/max plus the raw samples as a `camera-readiness` attachment, so the budget is published with its measurement rather than only asserted.
+
+Artifacts: `/tmp/identityflow-device-lifecycle/Logs/Test/Test-UIKitSample-2026.09.18_18-13-37-+0700.xcresult` and `Test-UIKitSample-2026.09.18_18-14-13-+0700.xcresult`.
+
+`SampleUITests` could not run on the device: installing its runner hit the free-provisioning concurrent-app limit. That is a provisioning constraint, not a code or test failure, and the UI suite still passes on Simulator.
+
+These results cover one device, one OS version and a Debug build. They establish nothing about other hardware, Release builds, thermal behavior or sustained memory.

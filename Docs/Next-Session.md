@@ -1,27 +1,24 @@
-# Camera integration handoff
-
-Live front/back test-card capture is implemented and now driven by the SDK rather than the sample. Choose Live camera, accept the disclosure, and Start simulation. Permission is requested before the vault session. Each confirmed side goes through temporary encrypted storage and the local simulated provider; no network upload or identity verification occurs. Generated cards remain available.
+# Handoff
 
 ## Current state
 
-`DocumentCaptureCoordinator` (IdentityFlowUI) owns front/back orchestration: one `CameraReviewViewController` per side, generation-based invalidation of callbacks from removed screens, a single checked continuation bridging into `ConfirmedImageCapture`, synchronous `hidePreview()` for inactivity, and refusal to restart after cancellation. `ChildCapturePresenter` embeds each side below the host's privacy cover. The sample's former `LiveCardCapture` adapter was deleted; `SimulationViewController` now constructs the coordinator directly.
+M0–M2 are implemented, M3 is code-complete with only physical gates remaining, and M4's transport-recovery half is implemented and covered.
 
-`ConfirmedImageCapture` moved from IdentityFlowSecurity to IdentityFlowCore so UI components conform without depending on encryption. `VaultEvidenceSource`'s signature did not change.
+`DocumentCaptureCoordinator` (IdentityFlowUI) owns front/back capture orchestration; the sample consumes it rather than its own adapter. `HTTPVerificationProvider` (IdentityFlowHTTP) implements the demo HTTP contract, and `DemoVerificationService` (IdentityFlowDemoService) models the server in process so tests can count logical mutations rather than client calls.
 
-Package suite: 38 tests pass. UIKitSample on iPhone 16 Pro Simulator, iOS 18.3.1: 19 component tests with 3 skipped, plus all 5 `SimulationUITests`. See Validation.md for the artifact path.
+Package suite: 54 tests. UIKitSample on iPhone 16 Pro Simulator, iOS 18.3.1: 19 component tests with 3 skipped, plus 5 `SimulationUITests`. See Validation.md for artifacts.
 
-Earlier physical observations remain user-reported UI validation, not instrumented security results: front/back crop editing, crop preview, retake, locking during crop editing, a fresh run, no preview lag after the native-preview change, and good rectangle guidance. Use printed test cards only.
+The duplicate-submission gate was verified by mutation, not by a green test alone: disabling client reconciliation fails the lost-response tests, and disabling server idempotency fails the replayed-key test. Keep both defences.
 
-## Remaining M3 work is physical only
+## Next steps, in order
 
-No code deliverable is outstanding for M3. The remaining gates need hardware:
+1. **Real HTTP demo server.** The current demo service is in-process and shares the `Wire` codec with the adapter, so nothing yet proves wire compatibility or exercises `URLSessionTransport`. A small local server would cover serialization, TLS and genuine network faults. This is the remaining half of M4's stated deliverable.
+2. **Foreground/background reconciliation adapter.** Backgrounding must cancel foreground transfer and force authoritative reconciliation before another mutation. Not started.
+3. **Physical M3 gates.** All need hardware, and at last check every paired iPhone reported `unavailable` to `devicectl`:
+   - `CameraComponentTests/testRepeatedHardwareLifecycleAndDuplicateStart` — 30 real start/stop cycles, duplicate-start rejection, provisional 1.5 s p95 readiness.
+   - Camera permission revocation and return-to-app recheck.
+   - Instrumented lock-state denial during crop editing, interruption stress, still/preview orientation comparison, minimum-iOS-16 hardware, hands-on VoiceOver, performance measurements.
 
-1. Reconnect and unlock DEV TESTING 7, then run `CameraComponentTests/testRepeatedHardwareLifecycleAndDuplicateStart`. It performs 30 real start/stop cycles, verifies duplicate start returns `CameraError.busy`, and checks the provisional p95 readiness target of 1.5 seconds. At last check every paired iPhone reported `unavailable` to `devicectl`.
-2. Revoke Camera access in Settings and confirm the recovery action and return-to-app recheck on hardware.
-3. Instrumented lock-state denial during crop editing, interruption stress, still/preview orientation comparison, minimum-iOS-16 hardware, hands-on VoiceOver order and announcements, and broader performance measurements.
+## Cautions
 
-## Next code milestone
-
-M4: the demo HTTP service and adapter from Provider-Contract.md — upload, idempotency key, bounded retry, and GET reconciliation after a lost commit response. The gate is that an accepted-request/lost-response scenario produces exactly one logical server submission. Nothing in M4 has started.
-
-Local changes include prior physical storage tests and user Xcode development-team edits. Preserve those edits.
+Earlier physical results are user-reported UI observations, not instrumented security evidence. Use printed test cards only. Keep normal simulator signing for sample runs; `CODE_SIGNING_ALLOWED=NO` breaks vault storage initialization. Preserve local Xcode development-team edits.

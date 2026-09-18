@@ -136,3 +136,17 @@ On iPhone 16 Pro Simulator, iOS 18.3.1, the UIKitSample run executed 19 componen
 The 5 passing `SimulationUITests` are the end-to-end evidence that the rewired sample still completes consent, all four outcomes, review cancellation, retake and background/foreground restart through the SDK-owned coordinator. SwiftUISample also built for generic iOS Simulator from the final source, and `git diff --check` passed.
 
 No new physical-device, VoiceOver or performance validation is claimed. This change relocates already-validated orchestration into the SDK; it does not establish any hardware property.
+
+## M4 HTTP provider and recovery — 18 September 2026
+
+Added `IdentityFlowHTTP` (`HTTPVerificationProvider`, `URLSessionTransport`, `RetryPolicy`, wire types) and `IdentityFlowDemoService` (`DemoVerificationService`, `DemoServiceTransport`). The demo service is an in-process model of the documented contract; it is not a socket server, and it shares the `Wire` codec with the adapter, so these results establish protocol *semantics* rather than wire compatibility.
+
+The full package suite passed all 54 Swift Testing tests (38 existing plus 16 contract tests). Coverage: whole-contract run through `VerificationClient`; lost response after an accepted commit; lost response after an accepted upload; replayed idempotency key; conflicting payload under an existing key; expired session; rejected credentials; rate limit honouring `Retry-After`; hostile `Retry-After` capped at 10 s; exhausted bounded retries with asserted 0.5/1/2 s backoff; malformed state body; server-enforced evidence size limit; delayed decision handing off as pending after the 30-second budget with 1/2/4/5 s poll backoff; delayed decision resolving when the server decides; cancellation while awaiting a decision; and a hostile error body whose free-form text must not reach the caller.
+
+Timing is deterministic: an injected clock records each sleep and advances virtual time without elapsed wall time, and jitter is fixed. The suite passed 5 consecutive runs with no flakiness after an initial race — an instant clock let the decision budget elapse before a test could cancel — was fixed by parking the clock during the cancellation test.
+
+The exit gate was verified by mutation rather than by observing a green test. With client-side reconciliation disabled, `lostResponseAfterAcceptedCommitProducesExactlyOneSubmission` fails on `submissionRequests == 1` and the transport call count, and `lostResponseAfterAcceptedUploadDoesNotStoreEvidenceTwice` fails on `evidenceRequests == 2`. With server-side idempotency disabled instead, `replayedCommitWithSameKeyCreatesNoSecondSubmission` fails on `logicalSubmissions == 1` while the lost-response gate still passes, because reconciliation alone prevents the second request. The two defences are therefore independently covered. Both mutations were reverted.
+
+UIKitSample built for generic iOS Simulator and the independent command-line consumer rebuilt and printed its simulated approval, confirming the new targets did not disturb existing consumers.
+
+No network, TLS, real-server, physical-device or performance validation is claimed. `URLSessionTransport` itself is exercised only by compilation; every contract test runs against the in-process service.

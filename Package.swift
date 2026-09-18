@@ -9,6 +9,8 @@ let package = Package(
         .library(name: "IdentityFlowCapture", targets: ["IdentityFlowCapture"]),
         .library(name: "IdentityFlowSecurity", targets: ["IdentityFlowSecurity"]),
         .library(name: "IdentityFlowCore", targets: ["IdentityFlowCore"]),
+        .library(name: "IdentityFlowHTTP", targets: ["IdentityFlowHTTP"]),
+        .library(name: "IdentityFlowDemoService", targets: ["IdentityFlowDemoService"]),
         .library(name: "IdentityFlowDemoSupport", targets: ["IdentityFlowDemoSupport"])
     ],
     targets: [
@@ -18,6 +20,9 @@ let package = Package(
         .target(name: "IdentityFlowCore"),
         .target(name: "IdentityFlowSecurity", dependencies: ["IdentityFlowCore"]),
         .testTarget(name: "IdentityFlowSecurityTests", dependencies: ["IdentityFlowSecurity", "IdentityFlowCore"]),
+        .target(name: "IdentityFlowHTTP", dependencies: ["IdentityFlowCore"]),
+        .target(name: "IdentityFlowDemoService", dependencies: ["IdentityFlowCore", "IdentityFlowHTTP"]),
+        .testTarget(name: "IdentityFlowHTTPTests", dependencies: ["IdentityFlowHTTP", "IdentityFlowDemoService", "IdentityFlowCore"]),
         .target(name: "IdentityFlowDemoSupport", dependencies: ["IdentityFlowCore"]),
         .testTarget(name: "IdentityFlowCoreTests", dependencies: ["IdentityFlowCore", "IdentityFlowDemoSupport"])
     ],

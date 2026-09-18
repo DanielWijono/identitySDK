@@ -1,8 +1,10 @@
 import XCTest
 import AVFoundation
+import os
+import SwiftUI
 import UIKit
 import IdentityFlowCapture
-import IdentityFlowUI
+@testable import IdentityFlowUI
 @testable import UIKitSample
 
 private actor FakeCamera: CameraDevice {
@@ -50,7 +52,13 @@ final class CameraComponentTests: XCTestCase {
         descendants(controller.view).compactMap { $0 as? UIButton }.first { $0.accessibilityIdentifier == title }!
     }
     private func message(_ controller: UIViewController) -> String {
-        descendants(controller.view).compactMap { $0 as? UILabel }.first { $0.accessibilityIdentifier == "cameraStatus" }?.text ?? ""
+        descendants(controller.view).compactMap { $0 as? UILabel }.first {
+            $0.accessibilityIdentifier == "cameraStatus" || $0.accessibilityIdentifier == "simulationStatus"
+        }?.text ?? ""
+    }
+    private func cameraController(in root: UIViewController) -> CameraReviewViewController? {
+        if let camera = root as? CameraReviewViewController { return camera }
+        return root.children.lazy.compactMap(cameraController).first
     }
     private func until(_ condition: @MainActor () async -> Bool) async throws {
         let deadline = ContinuousClock.now + .seconds(5)
@@ -207,6 +215,118 @@ final class CameraComponentTests: XCTestCase {
         try await until { self.message(screen).contains("detected and steady") }
         XCTAssertTrue(button("Take photo", screen).isEnabled)
         screen.cancelCapture()
+    }
+
+    func testRepeatedHardwareLifecycleAndDuplicateStart() async throws {
+        #if targetEnvironment(simulator)
+        throw XCTSkip("Repeated AVFoundation lifecycle requires a physical iPhone")
+        #else
+        guard CameraAuthorization.current == .authorized else {
+            throw XCTSkip("Grant camera permission in UIKitSample before running the hardware lifecycle test")
+        }
+        var readiness: [TimeInterval] = []
+        for iteration in 0..<30 {
+            let camera = StillCamera()
+            let preview = camera.makePreviewLayer()
+            let start = ProcessInfo.processInfo.systemUptime
+            try await camera.start { _ in }
+            readiness.append(ProcessInfo.processInfo.systemUptime - start)
+            if iteration == 0 {
+                do {
+                    try await camera.start { _ in }
+                    XCTFail("A running camera accepted a duplicate start")
+                } catch {
+                    XCTAssertEqual(error as? CameraError, .busy)
+                }
+            }
+            await camera.stop()
+            preview?.session = nil
+        }
+        let sorted = readiness.sorted()
+        let p95 = sorted[Int((Double(sorted.count - 1) * 0.95).rounded(.up))]
+        XCTAssertLessThanOrEqual(p95, 1.5, "Camera readiness p95 was \(p95) seconds: \(readiness)")
+        #endif
+    }
+
+    func testSwiftUIWrapperCreatesSharedControllerAndForwardsCancellation() async throws {
+        let camera = FakeCamera(bytes: jpeg())
+        var cancellations = 0
+        let view = CameraReviewView(sideDescription: "front", makeCamera: { camera },
+                                    onConfirm: { _ in }, onCancel: { cancellations += 1 })
+        let host = UIHostingController(rootView: view)
+        let window = UIWindow(frame: UIScreen.main.bounds)
+        window.rootViewController = host
+        window.isHidden = false
+        host.loadViewIfNeeded()
+        try await until {
+            guard let screen = self.cameraController(in: host) else { return false }
+            return self.button("Take photo", screen).isEnabled
+        }
+        let screen = try XCTUnwrap(cameraController(in: host))
+        screen.cancelCapture()
+        XCTAssertEqual(cancellations, 1)
+        window.isHidden = true
+    }
+
+    func testDeniedCameraPermissionOffersSettingsAndRechecksOnActivation() async throws {
+        let current = OSAllocatedUnfairLock(initialState: CameraAuthorization.denied)
+        var settingsOpens = 0
+        let screen = SimulationViewController(
+            requestCameraAuthorization: { .denied },
+            currentCameraAuthorization: { current.withLock { $0 } },
+            openCameraSettings: { settingsOpens += 1 }
+        )
+        screen.loadViewIfNeeded()
+        let testCamera = try XCTUnwrap(descendants(screen.view).compactMap { $0 as? UIButton }
+            .first { $0.currentTitle == "Test live camera" })
+        testCamera.sendActions(for: .touchUpInside)
+        try await until { self.message(screen).contains("Camera access is off") }
+        let settings = try XCTUnwrap(descendants(screen.view).compactMap { $0 as? UIButton }
+            .first { $0.accessibilityIdentifier == "openCameraSettings" })
+        XCTAssertFalse(settings.isHidden)
+        settings.sendActions(for: .touchUpInside)
+        XCTAssertEqual(settingsOpens, 1)
+        current.withLock { $0 = .authorized }
+        NotificationCenter.default.post(name: UIApplication.didBecomeActiveNotification, object: nil)
+        try await until { self.message(screen).contains("Camera access is enabled") }
+        XCTAssertTrue(settings.isHidden)
+    }
+
+    func testLargestDynamicTypeRetainsAccessibleGuidanceAndCropControls() async throws {
+        let camera = FakeCamera(bytes: jpeg())
+        let screen = CameraReviewViewController(sideDescription: "front", makeCamera: { camera })
+        let host = UIViewController()
+        host.addChild(screen)
+        host.view.addSubview(screen.view)
+        screen.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        screen.didMove(toParent: host)
+        host.setOverrideTraitCollection(
+            UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+            forChild: screen
+        )
+        let window = UIWindow(frame: screen.view.frame)
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.layoutIfNeeded()
+        try await until { self.button("Take photo", screen).isEnabled }
+        XCTAssertEqual(screen.traitCollection.preferredContentSizeCategory, .accessibilityExtraExtraExtraLarge)
+        await camera.guide(CameraGuidance(bounds: CGRect(x: 0.1, y: 0.2, width: 0.8, height: 0.5),
+                                           phase: .ready))
+        try await until {
+            self.descendants(screen.view).compactMap { $0 as? UIImageView }.first?
+                .accessibilityValue?.contains("Ready for manual capture") == true
+        }
+        button("Take photo", screen).sendActions(for: .touchUpInside)
+        try await until { !self.button("Preview crop", screen).isHidden }
+        let sliders = descendants(screen.view).compactMap { $0 as? UISlider }
+        XCTAssertEqual(sliders.count, 4)
+        XCTAssertTrue(sliders.allSatisfy { !($0.accessibilityLabel ?? "").isEmpty })
+        XCTAssertTrue(sliders.allSatisfy { ($0.accessibilityValue ?? "").contains("percent inset") })
+        let scroll = try XCTUnwrap(descendants(screen.view).compactMap { $0 as? UIScrollView }.first)
+        screen.view.layoutIfNeeded()
+        XCTAssertGreaterThan(scroll.contentSize.height, 0)
+        screen.cancelCapture()
+        window.isHidden = true
     }
 
     func testLiveAdapterSequencesSidesAndRejectsCallbacksAfterCancel() async throws {

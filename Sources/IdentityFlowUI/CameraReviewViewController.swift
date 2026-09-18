@@ -51,6 +51,7 @@ public final class CameraReviewViewController: UIViewController {
         instructions.font = .preferredFont(forTextStyle: .headline)
         instructions.adjustsFontForContentSizeCategory = true
         instructions.numberOfLines = 0
+        instructions.accessibilityTraits.insert(.updatesFrequently)
         instructions.accessibilityIdentifier = "cameraStatus"
         image.contentMode = .scaleAspectFit
         image.backgroundColor = .secondarySystemBackground
@@ -64,6 +65,8 @@ public final class CameraReviewViewController: UIViewController {
             let label = UILabel()
             label.text = "\(name) crop edge"
             label.font = .preferredFont(forTextStyle: .caption1)
+            label.adjustsFontForContentSizeCategory = true
+            label.numberOfLines = 0
             let slider = UISlider()
             slider.minimumValue = 0
             slider.maximumValue = 0.45
@@ -123,6 +126,7 @@ public final class CameraReviewViewController: UIViewController {
         cropButton.isHidden = true
         image.selection = nil
         image.image = nil
+        image.accessibilityValue = "Starting camera"
         confirm.isHidden = true
         retry.isHidden = true
         shutter.isHidden = false
@@ -166,6 +170,7 @@ public final class CameraReviewViewController: UIViewController {
                     self.showDefaultGuide()
                 }
                 self.image.guidancePhase = .searching
+                self.image.accessibilityValue = "Searching for a card. Manual capture is available."
                 self.shutter.isEnabled = true
                 self.instructions.text = "Photograph \(self.sideDescription). Center the test card inside the frame. Keep all corners visible and avoid glare. No identity verification is performed."
             } catch {
@@ -196,6 +201,13 @@ public final class CameraReviewViewController: UIViewController {
             text = "Card detected and steady. Take the photo when ready."
         }
         if instructions.text != text { instructions.text = text }
+        image.accessibilityValue = switch guidance.phase {
+        case .searching: "No card detected. Manual capture is available."
+        case .moveCloser: "Card detected but too small. Move closer."
+        case .keepInside: "Card detected near an edge. Move it inward."
+        case .holdSteady: "Card detected. Hold steady."
+        case .ready: "Card detected and steady. Ready for manual capture."
+        }
     }
 
     private func showDefaultGuide() {
@@ -224,6 +236,7 @@ public final class CameraReviewViewController: UIViewController {
                 self.image.guidancePhase = .searching
                 self.image.image = UIImage(data: normalized.jpeg)
                 self.image.accessibilityLabel = "Review photo of \(self.sideDescription)"
+                self.image.accessibilityValue = "Full image selected for cropping"
                 self.instructions.text = "Adjust the four crop edges around \(self.sideDescription), then preview the crop. Keep every corner and all text inside."
                 self.edges.forEach { $0.value = 0 }
                 self.cropControls.isHidden = false
@@ -247,6 +260,7 @@ public final class CameraReviewViewController: UIViewController {
         image.selection = CGRect(x: values[0], y: values[1],
                                  width: 1 - values[0] - values[2], height: 1 - values[1] - values[3])
         for edge in edges { edge.accessibilityValue = "\(Int(edge.value * 100)) percent inset" }
+        image.accessibilityValue = "Crop insets: left \(Int(values[0] * 100)) percent, top \(Int(values[1] * 100)) percent, right \(Int(values[2] * 100)) percent, bottom \(Int(values[3] * 100)) percent"
     }
 
     @objc private func applyCrop() {
@@ -263,6 +277,7 @@ public final class CameraReviewViewController: UIViewController {
                 self.jpeg = result.jpeg
                 self.image.selection = nil
                 self.image.image = UIImage(data: result.jpeg)
+                self.image.accessibilityValue = "Cropped image preview"
                 self.instructions.text = "Review the cropped image. Confirm only if the entire card is clear and readable; otherwise retake."
                 self.confirm.isHidden = false
                 self.retry.isHidden = false
@@ -283,6 +298,7 @@ public final class CameraReviewViewController: UIViewController {
         cropButton.isHidden = true
         image.selection = nil
         image.image = nil
+        image.accessibilityValue = nil
         instructions.text = text
         shutter.isHidden = true
         confirm.isHidden = true
@@ -300,6 +316,7 @@ public final class CameraReviewViewController: UIViewController {
         cropButton.isHidden = true
         image.selection = nil
         image.image = nil
+        image.accessibilityValue = nil
         let camera = releaseCamera()
         enqueueStop(camera)
         let completion = onConfirm
@@ -317,6 +334,7 @@ public final class CameraReviewViewController: UIViewController {
         cropButton.isHidden = true
         image.selection = nil
         image.image = nil // Conceal synchronously before awaiting camera shutdown.
+        image.accessibilityValue = nil
         instructions.text = "Capture cancelled."
         shutter.isEnabled = false
         confirm.isHidden = true

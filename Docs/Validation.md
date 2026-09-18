@@ -103,4 +103,24 @@ The device later reconnected; the build installed and launched successfully. The
 
 Added advisory `VNDetectRectanglesRequest` guidance on a separate AVFoundation-managed, preview-sized portrait YUV output capped at 4 Hz. A serial queue performs synchronous analysis, ensuring at most one in-flight frame, while `AVCaptureVideoPreviewLayer` remains independent. Guidance distinguishes searching, insufficient coverage, edge clipping, hold-steady and ready after three stable observations. The manual shutter stays enabled in every state; no automatic shutter, final crop, identity validation or hard rejection was added.
 
-The full package suite passed all 38 tests, including three deterministic coverage/margin/stability tests. All 10 focused camera/adapter component tests passed on iPhone 16 Pro Simulator, iOS 18.3.1, including guidance status without shutter blocking. Artifact: `/tmp/identityflow-rectangle-uikit-final/Logs/Test/Test-UIKitSample-2026.09.17_11-16-39-+0700.xcresult`. The signed build succeeded, installed, and launched on DEV TESTING 7. Physical detection accuracy and continued preview smoothness await user observation.
+The full package suite passed all 38 tests, including three deterministic coverage/margin/stability tests. All 10 focused camera/adapter component tests passed on iPhone 16 Pro Simulator, iOS 18.3.1, including guidance status without shutter blocking. Artifact: `/tmp/identityflow-rectangle-uikit-final/Logs/Test/Test-UIKitSample-2026.09.17_11-16-39-+0700.xcresult`. The signed build succeeded, installed, and launched on DEV TESTING 7. The user subsequently reported that the physical guidance test was good; this is not quantified detection-accuracy evidence.
+
+Duplicate start now fails with `CameraError.busy`. A new device-only component test performs 30 real-camera start/stop cycles, checks duplicate-start rejection and asserts the provisional 1.5-second p95 readiness target. The final Simulator camera suite passed with 10 tests and this hardware-only test skipped. DEV TESTING 7 disconnected before the physical test run, so lifecycle stability and timing remain pending.
+
+## SwiftUI camera wrapper — 17 September 2026
+
+Added public `CameraReviewView`, a thin `UIViewControllerRepresentable` over the same `CameraReviewViewController` used by UIKit. It forwards confirmation/cancellation callbacks, updates them with SwiftUI state changes and cancels capture when dismantled. Permission preflight and confirmed-byte ownership remain host responsibilities.
+
+The focused camera suite passed 11 tests with the device-only 30-cycle lifecycle test skipped on iPhone 16 Pro Simulator, iOS 18.3.1. New coverage creates the wrapper in `UIHostingController`, waits for the shared camera controller to start through an injected fake, and verifies cancellation forwarding. Artifact: `/tmp/identityflow-swiftui-wrapper-tests/Logs/Test/Test-UIKitSample-2026.09.17_22-28-51-+0700.xcresult`. SwiftUISample also built successfully for generic iOS Simulator from final source.
+
+## Camera permission recovery — 17 September 2026
+
+Both live-camera entry points now convert denied/restricted authorization into an explicit **Open Camera Settings** action. Returning to the active app rechecks authorization and reports whether access is enabled or still unavailable; it does not automatically launch capture or start a verification session. Unavailable Simulator hardware retains its separate generated-card recovery path. Authorization queries and Settings opening are injected in the sample host for deterministic coverage.
+
+The final focused camera suite passed 12 tests with the device-only 30-cycle lifecycle test skipped on iPhone 16 Pro Simulator, iOS 18.3.1. The new test covers denied access, Settings action forwarding, authorized return and action removal without modifying system permissions. Artifact: `/tmp/identityflow-permission-uikit-final/Logs/Test/Test-UIKitSample-2026.09.17_22-45-13-+0700.xcresult`. SwiftUISample rebuilt successfully for generic iOS Simulator. Physical revocation/return remains pending.
+
+## Camera accessibility and Dynamic Type — 17 September 2026
+
+Live guidance now exposes semantic accessibility values for no detection, move closer, edge clipping, hold steady and ready; readiness therefore does not rely on yellow/green alone. Crop sliders provide named edges and percentage inset values, and the preview summarizes the combined crop before and after processing. Guidance and crop labels wrap and opt into Dynamic Type.
+
+The focused camera suite passed 13 tests with the physical 30-cycle lifecycle test skipped on iPhone 16 Pro Simulator, iOS 18.3.1. New coverage overrides the camera screen to `.accessibilityExtraExtraExtraLarge`, verifies ready guidance is spoken, completes capture to crop controls, checks all four slider labels/values and confirms scroll content layout. Artifact: `/tmp/identityflow-accessibility-uikit/Logs/Test/Test-UIKitSample-2026.09.17_22-52-55-+0700.xcresult`. This is automated semantic/layout coverage, not hands-on VoiceOver navigation or a visual clipping audit on physical hardware.

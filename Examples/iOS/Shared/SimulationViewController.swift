@@ -13,7 +13,10 @@ final class SimulationViewController: UIViewController {
     private let input = UISegmentedControl(items: ["Generated cards", "Live camera"])
     private let start = UIButton(type: .system)
     private let cameraTest = UIButton(type: .system)
+    private let cameraSettings = UIButton(type: .system)
     private var requestingCamera = false
+    private var offerCameraSettings = false
+    private var awaitingCameraSettings = false
     private let cancel = UIButton(type: .system)
     private let status = UILabel()
     private let retry = UIButton(type: .system)
@@ -25,6 +28,28 @@ final class SimulationViewController: UIViewController {
     private var lifecycleGeneration = UUID()
     private var recoveryClient: VerificationClient?
     private var runTask: Task<Void, Never>?
+    private let requestCameraAuthorization: @MainActor () async -> CameraAuthorization
+    private let currentCameraAuthorization: @MainActor () -> CameraAuthorization
+    private let openCameraSettings: @MainActor () -> Void
+
+    init(requestCameraAuthorization: @escaping @MainActor () async -> CameraAuthorization = {
+             await CameraAuthorization.request()
+         },
+         currentCameraAuthorization: @escaping @MainActor () -> CameraAuthorization = {
+             CameraAuthorization.current
+         },
+         openCameraSettings: @escaping @MainActor () -> Void = {
+             guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+             UIApplication.shared.open(url)
+         }) {
+        self.requestCameraAuthorization = requestCameraAuthorization
+        self.currentCameraAuthorization = currentCameraAuthorization
+        self.openCameraSettings = openCameraSettings
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("Use init()") }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -51,6 +76,11 @@ final class SimulationViewController: UIViewController {
         cameraTest.configuration = .bordered()
         cameraTest.setTitle("Test live camera", for: .normal)
         cameraTest.addTarget(self, action: #selector(testLiveCamera), for: .touchUpInside)
+        cameraSettings.configuration = .bordered()
+        cameraSettings.setTitle("Open Camera Settings", for: .normal)
+        cameraSettings.accessibilityIdentifier = "openCameraSettings"
+        cameraSettings.addTarget(self, action: #selector(openCameraSettingsTapped), for: .touchUpInside)
+        cameraSettings.isHidden = true
         cancel.configuration = .bordered()
         cancel.setTitle("Cancel simulation", for: .normal)
         cancel.addTarget(self, action: #selector(cancelSimulation), for: .touchUpInside)
@@ -65,7 +95,7 @@ final class SimulationViewController: UIViewController {
         status.adjustsFontForContentSizeCategory = true
         status.text = "Choose an outcome and accept the sample disclosure to begin."
         status.accessibilityIdentifier = "simulationStatus"
-        let stack = UIStackView(arrangedSubviews: [titleLabel, disclosure, label("Simulated outcome", style: .headline), scenarios, label("Capture input", style: .headline), input, consentRow, start, cancel, retry, status, cameraTest])
+        let stack = UIStackView(arrangedSubviews: [titleLabel, disclosure, label("Simulated outcome", style: .headline), scenarios, label("Capture input", style: .headline), input, consentRow, start, cancel, retry, status, cameraSettings, cameraTest])
         stack.axis = .vertical
         stack.spacing = 24
         let scroll = contentScroll
@@ -119,6 +149,8 @@ final class SimulationViewController: UIViewController {
         consent.isEnabled = !requestingCamera && runTask == nil
         scenarios.isEnabled = !requestingCamera && runTask == nil
         cameraTest.isEnabled = runTask == nil && recoveryClient == nil && !requestingCamera
+        cameraSettings.isHidden = !offerCameraSettings
+        cameraSettings.isEnabled = offerCameraSettings && runTask == nil && !requestingCamera
         start.isEnabled = !requestingCamera && consent.isOn && storageReady && runTask == nil && recoveryClient == nil
         retry.isHidden = storageReady && recoveryClient == nil
         retry.isEnabled = runTask == nil && UIApplication.shared.applicationState == .active
@@ -130,16 +162,16 @@ final class SimulationViewController: UIViewController {
               presentedViewController == nil else { return }
         requestingCamera = true
         updateButtons()
-        Task { [weak self] in
-            let permission = await CameraAuthorization.request()
+        let requestCameraAuthorization = requestCameraAuthorization
+        Task { [weak self, requestCameraAuthorization] in
+            let permission = await requestCameraAuthorization()
             guard let self else { return }
             defer { self.requestingCamera = false; self.updateButtons() }
             guard permission == .authorized else {
-                self.status.text = permission == .unavailable
-                    ? "Live camera needs a physical iPhone with a rear camera."
-                    : "Camera access is off. Enable Camera for this app in Settings, then try again."
+                self.showCameraPermissionRecovery(permission, integrated: false)
                 return
             }
+            self.clearCameraPermissionRecovery()
             guard UIApplication.shared.applicationState == .active,
                   self.view.window != nil, self.presentedViewController == nil else { return }
             let screen = CameraReviewViewController(sideDescription: "a printed test card (no real ID)")
@@ -158,6 +190,55 @@ final class SimulationViewController: UIViewController {
 
     @objc private func consentChanged() { updateButtons() }
 
+    @objc private func openCameraSettingsTapped() {
+        guard offerCameraSettings, !requestingCamera, runTask == nil else { return }
+        awaitingCameraSettings = true
+        openCameraSettings()
+    }
+
+    private func showCameraPermissionRecovery(_ permission: CameraAuthorization, integrated: Bool) {
+        switch permission {
+        case .denied, .restricted:
+            offerCameraSettings = true
+            status.text = "Camera access is off. Open Settings, enable Camera for this app, then return and try again."
+        case .unavailable:
+            offerCameraSettings = false
+            status.text = integrated
+                ? "Live capture needs a physical iPhone. Choose Generated cards on the simulator."
+                : "Live camera needs a physical iPhone with a rear camera."
+        case .notDetermined:
+            offerCameraSettings = false
+            status.text = "Camera permission was not completed. Try again to continue."
+        case .authorized:
+            clearCameraPermissionRecovery()
+        }
+        updateButtons()
+    }
+
+    private func clearCameraPermissionRecovery() {
+        offerCameraSettings = false
+        awaitingCameraSettings = false
+    }
+
+    private func refreshCameraPermissionAfterSettings() {
+        guard awaitingCameraSettings else { return }
+        switch currentCameraAuthorization() {
+        case .authorized:
+            clearCameraPermissionRecovery()
+            status.text = "Camera access is enabled. Try live camera again."
+        case .denied, .restricted:
+            offerCameraSettings = true
+            status.text = "Camera access is still off. Enable Camera in Settings, then return and try again."
+        case .notDetermined:
+            clearCameraPermissionRecovery()
+            status.text = "Camera permission is ready to request. Try live camera again."
+        case .unavailable:
+            clearCameraPermissionRecovery()
+            status.text = "Live camera needs a physical iPhone with a rear camera."
+        }
+        updateButtons()
+    }
+
     @objc private func suspendStorage() {
         // Synchronous gate closes before returning from the lifecycle notification.
         vault.leaveForeground()
@@ -172,6 +253,7 @@ final class SimulationViewController: UIViewController {
     @objc private func activateStorage() {
         guard UIApplication.shared.applicationState == .active,
               UIApplication.shared.isProtectedDataAvailable else { return }
+        refreshCameraPermissionAfterSettings()
         let generation = UUID()
         lifecycleGeneration = generation
         let permit = vault.foregroundPermit() // Captured before scheduling asynchronous activation.
@@ -221,16 +303,16 @@ final class SimulationViewController: UIViewController {
         guard runTask == nil, consent.isOn, storageReady, recoveryClient == nil else { return }
         requestingCamera = true
         updateButtons()
-        Task { [weak self] in
-            let permission = await CameraAuthorization.request()
+        let requestCameraAuthorization = requestCameraAuthorization
+        Task { [weak self, requestCameraAuthorization] in
+            let permission = await requestCameraAuthorization()
             guard let self else { return }
             defer { self.requestingCamera = false; self.updateButtons() }
             guard permission == .authorized else {
-                self.status.text = permission == .unavailable
-                    ? "Live capture needs a physical iPhone. Choose Generated cards on the simulator."
-                    : "Enable Camera for this app in Settings, then try again."
+                self.showCameraPermissionRecovery(permission, integrated: true)
                 return
             }
+            self.clearCameraPermissionRecovery()
             // Permission prompts can suspend the app. Re-establish the gate before starting.
             guard UIApplication.shared.applicationState == .active,
                   UIApplication.shared.isProtectedDataAvailable, self.view.window != nil else { return }

@@ -70,6 +70,7 @@ public actor StillCamera: CameraDevice {
     private var observers: [NSObjectProtocol] = []
     private var eventSink: (@Sendable (CameraEvent) -> Void)?
     private var configured = false
+    private var started = false
     private var closed = false
 
     public init() {}
@@ -80,6 +81,7 @@ public actor StillCamera: CameraDevice {
 
     public func start(events: @escaping @Sendable (CameraEvent) -> Void) throws {
         guard !closed else { throw CameraError.stopped }
+        guard !started else { throw CameraError.busy }
         guard AVCaptureDevice.authorizationStatus(for: .video) == .authorized else {
             throw CameraError.permissionRequired
         }
@@ -127,6 +129,7 @@ public actor StillCamera: CameraDevice {
         analysis.setSampleBufferDelegate(rectangleFrames, queue: analysisQueue)
         if !session.isRunning { session.startRunning() }
         guard session.isRunning, !session.isInterrupted else { throw CameraError.interrupted }
+        started = true
     }
 
     public func capture() async throws -> Data {
@@ -173,6 +176,7 @@ public actor StillCamera: CameraDevice {
 
     public func stop() {
         closed = true
+        started = false
         for observer in observers { NotificationCenter.default.removeObserver(observer) }
         observers.removeAll()
         eventSink = nil

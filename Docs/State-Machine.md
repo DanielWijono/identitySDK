@@ -14,7 +14,7 @@
 
 Any active state accepts cancellation or expiry. The first actor-isolated terminal reservation wins. Every async operation is followed by a generation check before further work; stale completions are ignored. Success also rechecks expiry. Cleanup occurs once per accepted run. Remote cancellation is detached from the completion contract, but runs in an ordinary unstructured task.
 
-This foundation terminates on provider failure. Recoverable retry states and lifecycle reconciliation from the release plan are not yet implemented. Providers must not return an identity decision based merely on successful upload.
+The core terminates on an unrecovered provider failure and does not expose a second UI retry state. `HTTPVerificationProvider` performs bounded internal retry and authoritative reconciliation. Its optional `ForegroundHTTPTransport` cancels active network work on inactivity, blocks requests while inactive, transparently resumes reads, and forces an interrupted mutation back through reconciliation after fresh activation. Providers must not return an identity decision based merely on successful upload.
 
 Expiry uses a fixed monotonic deadline established at acceptance (backend remaining lifetime capped at 15 minutes). Each operation boundary checks both that deadline and current wall-clock expiry. A clock rollback cannot extend validity even when timer execution is delayed. The internal clock is injectable for deterministic tests.
 

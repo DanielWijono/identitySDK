@@ -178,3 +178,11 @@ On device (DEV TESTING 7, iPhone 14, iOS 17.3) the full `CameraComponentTests` t
 Swift 6 strict concurrency rejected the first implementation for capturing a mutable variable in the analysis closure; it was restructured to bind the score immutably.
 
 Threshold calibration against printed test cards on hardware remains an open gate. Until then the heuristic may report `tooBlurry` for acceptable frames.
+
+## Independent live HTTP server — 19 September 2026
+
+Added `Examples/DemoHTTPServer/server.py`, a loopback-only standard-library Python implementation of the documented contract. It does not import the Swift `Wire` types. It independently decodes consent and submission JSON, validates evidence IDs and SHA-256 digests, enforces token binding, expiry, ordering, media and size limits, and implements server-side idempotency. It supports approved, rejected, held and delayed decisions. Optional local HTTPS accepts a supplied certificate and key while preserving normal client trust validation.
+
+Two macOS integration tests launch the server on an ephemeral port and use the production `URLSessionTransport`. The normal path completes consent, two evidence uploads, submission and decision, with the server reporting one consent write, two evidence writes and one logical submission. The fault path commits the submission, closes the TCP connection before returning its response, and verifies that authoritative reconciliation still returns approval with one logical submission.
+
+The full package suite passed all 62 tests. The two live tests completed in approximately 0.38 seconds after the server was changed to avoid an unnecessary reverse-DNS lookup during loopback binding. The automated tests use plain HTTP on `127.0.0.1`; they establish real socket behavior and independent JSON compatibility, but they do not install a test CA or claim TLS interoperability. Foreground/background transfer reconciliation remains the open M4 lifecycle item.
